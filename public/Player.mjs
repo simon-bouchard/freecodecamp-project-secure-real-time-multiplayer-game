@@ -37,7 +37,7 @@ class Player {
   	}
 
   	calculateRank(arr) {
-		let currentRanking = 0;
+		let currentRanking = 1;
 		let totalPlayers = 0;
 
 	  	for (var player=0; player < arr.length; player ++){
@@ -46,7 +46,7 @@ class Player {
 			}
 		}
 
-		return `Rank: ${currentRanking}/${player}`
+		return `Rank: ${currentRanking}/${player + 1}`
   	}
 }
 

@@ -50,7 +50,7 @@ function draw() {
 	ctx.fillText('Coin Race', canvas.width / 2, 30);
 
 	ctx.textAlign = 'right';
-	ctx.fillText(`Rank: ${1 / 1}`, canvas.width - padding, 30)
+	ctx.fillText(player.calculateRank(otherPlayers), canvas.width - padding, 30)
 
 	//collectible
 	ctx.strokeStyle = '#FFD700'
