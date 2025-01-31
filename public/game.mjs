@@ -18,10 +18,12 @@ window.addEventListener('keyup', (event) => {
 const player = new Player({ x: 320, y: 240, score:0, id: socket.id })
 const collectible = new Collectible()
 
+let otherPlayers = []
+
 socket.emit('newPlayer', player);
 
 socket.on('updatePlayers', (players) => {
-
+	otherPlayers = players;
 })
 
 function draw() {
@@ -84,12 +86,8 @@ function update() {
 		moved = true;
 	}
 
-	if (player.collision(collectible)) {
-		socket.emit('playerScore', {score: player.score});
-	}
-
-	if (moved) {
-		socket.emit('playerMove', {x: player.x,  y: player.y});
+	if (player.collision(collectible) || moved) {
+		socket.emit('updatePlayer', player);
 	}
 
 	draw();

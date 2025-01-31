@@ -38,8 +38,21 @@ app.use(function(req, res, next) {
     .send('Not Found');
 });
 
+let players = []
+
 io.on("connection", (socket) => {
 	console.log('A user connected:', socket.id);
+
+	socket.on('newPlayer', (player) => {
+		players[player.id] = player;
+		io.emit('updatePlayers', players);
+	})
+
+	socket.on('updatePlayer', (player) => {
+		players[player.id] = player;
+		io.emit('updatePlayers', players);
+	})
+
 
 	socket.on('disconnect', () => {
 		console.log('User disconnected:', socket.id);
