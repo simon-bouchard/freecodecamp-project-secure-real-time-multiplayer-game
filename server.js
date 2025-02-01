@@ -50,7 +50,7 @@ io.on("connection", (socket) => {
 
 	socket.on('updatePlayer', (player) => {
 		let playerIndex = players.findIndex( p => p.id === player.id)
-		if (playerIndex !== 1) {
+		if (playerIndex !== -1) {
 			players[playerIndex] = player
 		}
 		io.emit('updatePlayers', players);
@@ -59,7 +59,7 @@ io.on("connection", (socket) => {
 
 	socket.on('disconnect', () => {
 		console.log('User disconnected:', socket.id);
-		players = players.filter( p => p.id === socket.id);
+		players = players.filter( p => p.id !== socket.id);
 		io.emit('updatePlayers', players)
 	});
 });

@@ -40,7 +40,7 @@ class Player {
 		let currentRanking = 1;
 		let totalPlayers = 0;
 
-	  	for (var player=0; player < arr.length; player ++){
+	  	for (let player=0; player < arr.length; player ++){
 			if (arr[player].id === this.id) {
 				continue
 			}
@@ -48,7 +48,7 @@ class Player {
 				currentRanking += 1;
 			}
 		}
-		return `Rank: ${currentRanking}/${player}`
+		return `Rank: ${currentRanking}/${arr.length}`
   	}
 }
 

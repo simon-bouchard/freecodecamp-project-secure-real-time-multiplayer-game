@@ -15,18 +15,21 @@ window.addEventListener('keyup', (event) => {
 	keys[event.key] = false;
 });
 
-const player = new Player({ x: 320, y: 240, score:0, id: socket.id })
+let player = new Player({ x: 320, y: 240, score:0, id: socket.id })
+socket.emit('newPlayer', player);
+
 const collectible = new Collectible()
 
 let otherPlayers = []
-
-socket.emit('newPlayer', player);
 
 socket.on('updatePlayers', (players) => {
 	otherPlayers = players;
 })
 
 function draw() {
+	if (!player) {
+		return
+	}
 	//background
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = '#232323';
@@ -72,10 +75,13 @@ function draw() {
 	})
 }
 
-const speed = 10
 
 function update() {
+	if (!player) {
+		return
+	}
 	let moved = false 
+	const speed = 10
 
 	if ((keys['ArrowUp'] || keys['w']) && (player.y > 55)) {
 		player.movePlayer('up', speed);
@@ -103,4 +109,4 @@ function update() {
 	requestAnimationFrame(update);
 }
 
-update();
+update()
