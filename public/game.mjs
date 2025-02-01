@@ -55,13 +55,19 @@ function draw() {
 	//collectible
 	ctx.strokeStyle = '#FFD700'
 	ctx.beginPath();
-	ctx.arc(collectible.x, collectible.y, 7, 0, Math.PI * 2); // (x, y, radius, startAngle, endAngle)
+	ctx.arc(collectible.x, collectible.y, 7, 0, Math.PI * 2); 
 	ctx.fillStyle = "#FFD700";
 	ctx.fill();
 
 	//player
 	ctx.fillStyle = 'green';
 	ctx.fillRect(player.x, player.y, 20, 20)
+
+	//other players
+	for (let otherPlayer in otherPlayers) {
+		ctx.fillStyle = 'red';
+		ctx.Rect(otherPlayer.x, otherPlayer.y, 20, 20)
+	}
 }
 
 const speed = 10

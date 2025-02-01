@@ -46,7 +46,7 @@ class Player {
 			}
 		}
 
-		return `Rank: ${currentRanking}/${player + 1}`
+		return `Rank: ${currentRanking}/${player + 2}`
   	}
 }
 
