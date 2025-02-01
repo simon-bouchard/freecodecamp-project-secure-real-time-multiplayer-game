@@ -15,8 +15,13 @@ window.addEventListener('keyup', (event) => {
 	keys[event.key] = false;
 });
 
-let player = new Player({ x: 320, y: 240, score:0, id: socket.id })
-socket.emit('newPlayer', player);
+let player
+socket.on('connect', () => {
+	player = new Player({ x: 320, y: 240, score:0, id: socket.id })
+	socket.emit('newPlayer', player);
+	console.log('Player created')
+	update()
+})
 
 const collectible = new Collectible()
 
@@ -58,7 +63,7 @@ function draw() {
 	//collectible
 	ctx.strokeStyle = '#FFD700'
 	ctx.beginPath();
-	ctx.arc(collectible.x, collectible.y, 7, 0, Math.PI * 2); 
+	ctx.arc(collectible.x + 7, collectible.y + 7, 7, 0, Math.PI * 2); 
 	ctx.fillStyle = "#FFD700";
 	ctx.fill();
 
@@ -81,7 +86,7 @@ function update() {
 		return
 	}
 	let moved = false 
-	const speed = 10
+	const speed = 5
 
 	if ((keys['ArrowUp'] || keys['w']) && (player.y > 55)) {
 		player.movePlayer('up', speed);
@@ -109,4 +114,3 @@ function update() {
 	requestAnimationFrame(update);
 }
 
-update()

@@ -1,5 +1,5 @@
 class Player {
-  	constructor({x = 320, y = 240, score = 0, id='new'} = {}) {
+  	constructor({x = 320, y = 240, score, id} = {}) {
 
 	  	this.x = x;
 	  	this.y = y
@@ -24,16 +24,24 @@ class Player {
   	}
 
   	collision(item) {
-		if (
-			this.x < item.x + 20 &&
-			this.x + 20 > item.x &&
-			this.y < item.y + 20 &&
-			this.y + 20 > item.y 
-		) {
+		const playerRadius = 10
+		const collectibleRadius = 7;
+
+		const playerCenterX = this.x + playerRadius;
+		const playerCenterY = this.y + playerRadius
+		const collectibleCenterX = item.x + collectibleRadius;
+		const collectibleCenterY = item.y + collectibleRadius;
+
+		const dx = playerCenterX - collectibleCenterX;
+		const dy = playerCenterY - collectibleCenterY
+		const distance = Math.sqrt(dx * dx + dy * dy);
+
+		if (distance < playerRadius + collectibleRadius) {
 			this.score += item.value;
-			console.log(this.score);
 			item.reset();
+			return true
 		}
+		return false
   	}
 
   	calculateRank(arr) {
