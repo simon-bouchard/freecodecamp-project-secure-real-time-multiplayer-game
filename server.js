@@ -5,6 +5,7 @@ const expect = require('chai');
 const http = require('http');
 const socket = require('socket.io');
 const cors = require('cors');
+const helmet = require('helmet');
 
 const fccTestingRoutes = require('./routes/fcctesting.js');
 const runner = require('./test-runner.js');
@@ -18,6 +19,38 @@ app.use('/assets', express.static(process.cwd() + '/assets'));
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"], 
+                styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"], 
+				fontSRC: ["'self'", "https://fonts.gstatic.com"],
+                imgSrc: ["'self'", "data:"], 
+                connectSrc: ["'self'", "ws:", "wss:"], 
+                frameAncestors: ["'none'"], 
+            },
+        },
+        referrerPolicy: { policy: "no-referrer" }, 
+        hidePoweredBy: true, 
+        xssFilter: true, 
+        noSniff: true, 
+        hsts: { maxAge: 63072000, includeSubDomains: true, preload: true }, 
+    })
+);
+
+app.use ((req, res, next) => {
+	res.setHeader('X-Powered-By', 'PHP 7.4.3');
+	next()
+})
+
+app.use((req, res, next) => {
+	res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+	res.setHeader('Expires', '0');
+	next();
+});
 
 //For FCC testing purposes and enables user to connect from outside the hosting platform
 app.use(cors({origin: '*'})); 

@@ -31,6 +31,32 @@ socket.on('updatePlayers', (players) => {
 	otherPlayers = players;
 })
 
+function drawSmileyFace(x, y, color, radius = 15) {
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+	ctx.strokeStyle = 'black';
+    ctx.stroke(); 
+
+    // Draw left eye
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.arc(x - radius / 3, y - radius / 3, radius / 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw right eye
+    ctx.beginPath();
+    ctx.arc(x + radius / 3, y - radius / 3, radius / 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw smile
+    ctx.beginPath();
+    ctx.arc(x, y + radius / 6, radius / 2, 0, Math.PI);
+    ctx.stroke();
+}
+
 function draw() {
 	if (!player) {
 		return
@@ -68,14 +94,12 @@ function draw() {
 	ctx.fill();
 
 	//player
-	ctx.fillStyle = 'green';
-	ctx.fillRect(player.x, player.y, 20, 20)
+	drawSmileyFace(player.x, player.y, 'yellow');
 
 	//other players
 	otherPlayers.forEach(otherPlayer => {
 		if (otherPlayer.id !== player.id) {
-			ctx.fillStyle = 'red';
-			ctx.fillRect(otherPlayer.x, otherPlayer.y, 20, 20)
+			drawSmileyFace(otherPlayer.x, otherPlayer.y, 'red');
 		}
 	})
 }

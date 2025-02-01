@@ -24,16 +24,11 @@ class Player {
   	}
 
   	collision(item) {
-		const playerRadius = 10
+		const playerRadius = 15
 		const collectibleRadius = 7;
 
-		const playerCenterX = this.x + playerRadius;
-		const playerCenterY = this.y + playerRadius
-		const collectibleCenterX = item.x + collectibleRadius;
-		const collectibleCenterY = item.y + collectibleRadius;
-
-		const dx = playerCenterX - collectibleCenterX;
-		const dy = playerCenterY - collectibleCenterY
+		const dx = this.x - item.x;
+		const dy = this.y - item.y;
 		const distance = Math.sqrt(dx * dx + dy * dy);
 
 		if (distance < playerRadius + collectibleRadius) {
