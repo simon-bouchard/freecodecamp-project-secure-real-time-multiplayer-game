@@ -44,18 +44,23 @@ io.on("connection", (socket) => {
 	console.log('A user connected:', socket.id);
 
 	socket.on('newPlayer', (player) => {
-		players[player.id] = player;
+		players.push(player);
 		io.emit('updatePlayers', players);
 	})
 
 	socket.on('updatePlayer', (player) => {
-		players[player.id] = player;
+		let playerIndex = players.findIndex( p => p.id === player.id)
+		if (playerIndex !== 1) {
+			players[playerIndex] = player
+		}
 		io.emit('updatePlayers', players);
 	})
 
 
 	socket.on('disconnect', () => {
 		console.log('User disconnected:', socket.id);
+		players = players.filter( p => p.id === socket.id);
+		io.emit('updatePlayers', players)
 	});
 });
 

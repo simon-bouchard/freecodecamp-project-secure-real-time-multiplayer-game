@@ -64,10 +64,12 @@ function draw() {
 	ctx.fillRect(player.x, player.y, 20, 20)
 
 	//other players
-	for (let otherPlayer in otherPlayers) {
-		ctx.fillStyle = 'red';
-		ctx.Rect(otherPlayer.x, otherPlayer.y, 20, 20)
-	}
+	otherPlayers.forEach(otherPlayer => {
+		if (otherPlayer.id !== player.id) {
+			ctx.fillStyle = 'red';
+			ctx.fillRect(otherPlayer.x, otherPlayer.y, 20, 20)
+		}
+	})
 }
 
 const speed = 10
