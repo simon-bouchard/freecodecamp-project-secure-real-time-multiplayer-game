@@ -98,7 +98,7 @@ function draw() {
 	//collectible
 	ctx.strokeStyle = '#FFD700'
 	ctx.beginPath();
-	ctx.arc(collectible.x + 7, collectible.y + 7, 7, 0, Math.PI * 2); 
+	ctx.arc(collectible.x, collectible.y, 7, 0, Math.PI * 2); 
 	ctx.fillStyle = "#FFD700";
 	ctx.fill();
 
