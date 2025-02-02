@@ -118,6 +118,11 @@ function draw() {
 			drawSmileyFace(otherPlayer.x, otherPlayer.y, 'red');
 		}
 	})
+
+	//score
+	ctx.font = '15px Monospace';
+	ctx.fillStyle = 'white';
+	ctx.fillText(`Score: ${player.score}`, canvas.width - padding, 67);
 }
 
 
