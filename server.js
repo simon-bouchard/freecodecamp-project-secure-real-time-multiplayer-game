@@ -81,9 +81,15 @@ io.on("connection", (socket) => {
 	console.log('A user connected:', socket.id);
 
 	socket.on('newPlayer', (player) => {
-		socket.emit('newCollectible', {x: collectible.x, y: collectible.y})
 		players.push(player);
+		console.log(`New player added: ${player.id}`);
+	    console.log(`Sending collectible to player: ${socket.id} -> (${collectible.x}, ${collectible.y})`);
+		socket.emit('newCollectible', {x: collectible.x, y: collectible.y})
 		io.emit('updatePlayers', players);
+	})
+
+	socket.on('requestCollectible', () => {
+		socket.emit('newCollectible', {x: collectible.x, y: collectible.y})
 	})
 
 	socket.on('updatePlayer', (player) => {

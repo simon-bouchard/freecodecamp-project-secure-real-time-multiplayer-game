@@ -19,7 +19,11 @@ let player, collectible
 socket.on('connect', () => {
 	player = new Player({ x: 320, y: 240, score:0, id: socket.id })
 	socket.emit('newPlayer', player);
+
 	console.log('Player created')
+
+	socket.emit('requestCollectible')
+
 	update()
 })
 
@@ -70,6 +74,7 @@ function draw() {
 	if (!player) {
 		return
 	}
+
 	//background
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = '#232323';
@@ -96,11 +101,13 @@ function draw() {
 	ctx.fillText(player.calculateRank(otherPlayers), canvas.width - padding, 30)
 
 	//collectible
-	ctx.strokeStyle = '#FFD700'
-	ctx.beginPath();
-	ctx.arc(collectible.x, collectible.y, 7, 0, Math.PI * 2); 
-	ctx.fillStyle = "#FFD700";
-	ctx.fill();
+	if (collectible) {
+		ctx.strokeStyle = '#FFD700'
+		ctx.beginPath();
+		ctx.arc(collectible.x, collectible.y, 7, 0, Math.PI * 2); 
+		ctx.fillStyle = "#FFD700";
+		ctx.fill();
+	}
 
 	//player
 	drawSmileyFace(player.x, player.y, 'yellow');
@@ -116,6 +123,7 @@ function draw() {
 
 function update() {
 	if (!player || !collectible) {
+		requestAnimationFrame(update);
 		return
 	}
 	let moved = false 
