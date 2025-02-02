@@ -129,7 +129,7 @@ function update() {
 	let moved = false 
 	const speed = 5
 
-	if ((keys['ArrowUp'] || keys['w']) && (player.y > 55)) {
+	if ((keys['ArrowUp'] || keys['w']) && (player.y > 65)) {
 		player.movePlayer('up', speed);
 		moved = true;
 	}
@@ -137,7 +137,7 @@ function update() {
 		player.movePlayer('down', speed);
 		moved = true;
 	}
-	if ((keys['ArrowLeft'] || keys['a']) && player.x > 10) {
+	if ((keys['ArrowLeft'] || keys['a']) && player.x > 20) {
 		player.movePlayer('left', speed);
 		moved = true;
 	}

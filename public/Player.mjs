@@ -1,10 +1,11 @@
 class Player {
-  	constructor({x = 320, y = 240, score, id} = {}) {
+  	constructor({x = 320, y = 240, size=15, score=0, id} = {}) {
 
 	  	this.x = x;
 	  	this.y = y
 	  	this.score = score;
 	  	this.id = id
+		this.size
   	}
 
   	movePlayer(dir, speed) {
