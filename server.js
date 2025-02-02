@@ -1,4 +1,5 @@
 require('dotenv').config();
+const Collectible = require("./public/Collectible.mjs").default; 
 const express = require('express');
 const bodyParser = require('body-parser');
 const expect = require('chai');
@@ -74,10 +75,13 @@ app.use(function(req, res, next) {
 
 let players = []
 
+let collectible = new Collectible();
+
 io.on("connection", (socket) => {
 	console.log('A user connected:', socket.id);
 
 	socket.on('newPlayer', (player) => {
+		socket.emit('newCollectible', {x: collectible.x, y: collectible.y})
 		players.push(player);
 		io.emit('updatePlayers', players);
 	})
@@ -90,6 +94,10 @@ io.on("connection", (socket) => {
 		io.emit('updatePlayers', players);
 	})
 
+	socket.on('updateCollectible', () => {
+		collectible.reset();
+		io.emit('newCollectible', {x: collectible.x, y: collectible.y});
+	})
 
 	socket.on('disconnect', () => {
 		console.log('User disconnected:', socket.id);

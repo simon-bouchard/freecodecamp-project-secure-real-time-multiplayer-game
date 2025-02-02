@@ -33,7 +33,6 @@ class Player {
 
 		if (distance < playerRadius + collectibleRadius) {
 			this.score += item.value;
-			item.reset();
 			return true
 		}
 		return false

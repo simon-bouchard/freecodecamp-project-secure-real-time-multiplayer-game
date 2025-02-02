@@ -1,5 +1,3 @@
-const canvas = document.getElementById('game-window');
-
 class Collectible {
 	constructor({x, y, value=1, id=1} = {}) {
 

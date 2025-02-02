@@ -15,7 +15,7 @@ window.addEventListener('keyup', (event) => {
 	keys[event.key] = false;
 });
 
-let player
+let player, collectible
 socket.on('connect', () => {
 	player = new Player({ x: 320, y: 240, score:0, id: socket.id })
 	socket.emit('newPlayer', player);
@@ -23,13 +23,22 @@ socket.on('connect', () => {
 	update()
 })
 
-const collectible = new Collectible()
+socket.on('newCollectible', (item) => {
+	if (!collectible) {
+		collectible = new Collectible(item.x, item.y)
+	} else {
+		collectible.x = item.x;
+		collectible.y = item.y;
+	}
+});
 
 let otherPlayers = []
 
 socket.on('updatePlayers', (players) => {
 	otherPlayers = players;
 })
+
+
 
 function drawSmileyFace(x, y, color, radius = 15) {
 
@@ -106,7 +115,7 @@ function draw() {
 
 
 function update() {
-	if (!player) {
+	if (!player || !collectible) {
 		return
 	}
 	let moved = false 
@@ -129,8 +138,13 @@ function update() {
 		moved = true;
 	}
 
-	if (player.collision(collectible) || moved) {
+	let collision = player.collision(collectible);
+
+	if (collision || moved) {
 		socket.emit('updatePlayer', player);
+		if (collision) {
+			socket.emit('updateCollectible');
+		}
 	}
 
 	draw();
