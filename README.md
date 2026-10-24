@@ -33,6 +33,7 @@ Open the game in two tabs to play against yourself.
 | Keyboard input                                                     | `src/client/input.ts`                                          |
 | Client-side prediction and reconciliation                          | `src/client/prediction.ts`                                     |
 | Snapshot interpolation of other players                            | `src/client/interpolation.ts`                                  |
+| Fixed 30 Hz client ticks, sending input, reconnects                | `src/client/session.ts`, `src/client/fixed-step.ts`            |
 | Drawing                                                            | `src/client/render.ts`, wired together in `src/client/main.ts` |
 
 1. **Input.** Each client tick (30 per second) while a key is held, the client sends its key
