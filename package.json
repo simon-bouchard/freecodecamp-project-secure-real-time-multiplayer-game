@@ -1,31 +1,35 @@
 {
-  "name": "secure-real-time-multiplayer-game",
-  "version": "1.0.0",
-  "description": "Information Security 5: Secure Real-Time Multiplayer Game",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "test": "PORT=3005 mocha --require @babel/register --recursive --exit --ui tdd tests/",
-	"dev": "nodemon server.js"
-  },
-  "dependencies": {
-    "@babel/core": "^7.7.5",
-    "@babel/preset-env": "^7.7.6",
-    "@babel/register": "^7.7.4",
-    "body-parser": "^1.19.0",
-    "chai": "^4.2.0",
-    "chai-http": "^4.3.0",
-    "cors": "^2.8.5",
-    "dotenv": "^8.2.0",
-    "express": "^4.17.1",
-    "helmet": "^3.21.3",
-    "jsdom": "^16.2.0",
-    "mocha": "^7.1.0",
-    "socket.io": "^2.3.0",
-    "socket.io-client": "^2.3.0"
-  },
-  "devDependencies": {
-	  "nodemon": "^3.0.0"
-  },
-  "license": "MIT"
+	"name": "coin-race",
+	"version": "2.0.0",
+	"description": "A small real-time multiplayer coin collecting game",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"dev": "concurrently -n server,client \"tsx watch src/server/index.ts\" \"vite\"",
+		"build": "vite build && tsc -p tsconfig.server.json",
+		"start": "node dist/server/server/index.js",
+		"test": "vitest run",
+		"typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json",
+		"format": "prettier --write ."
+	},
+	"license": "MIT",
+	"dependencies": {
+		"express": "^5.3.0",
+		"helmet": "^8.3.0",
+		"socket.io": "^4.8.4",
+		"socket.io-client": "^4.8.4"
+	},
+	"devDependencies": {
+		"@types/express": "^5.0.6",
+		"@types/node": "^26.6.5",
+		"concurrently": "^10.0.6",
+		"prettier": "^3.9.10",
+		"tsx": "^4.23.15",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.5",
+		"vitest": "^5.0.5"
+	}
 }
