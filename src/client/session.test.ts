@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { afterEach, expect, test } from 'vitest';
+import { PALETTE } from '../shared/constants.js';
 import { NO_INPUT } from '../shared/game.js';
 import type { InputState, Snapshot } from '../shared/protocol.js';
 import { type GameServer, startServer } from '../server/server.js';
@@ -42,6 +43,7 @@ test('movement works again after a reconnect while a key was held', async () => 
 	const session = new GameSession(socket, () => input);
 
 	socket.connect();
+	await socket.emitWithAck('join', { name: 'Ann', color: PALETTE[0]! });
 	await waitFor(() => session.predictor.position !== null);
 	for (let i = 0; i < 30; i++) session.tick();
 
@@ -49,6 +51,7 @@ test('movement works again after a reconnect while a key was held', async () => 
 	for (let i = 0; i < 30; i++) session.tick();
 
 	socket.connect();
+	await socket.emitWithAck('join', { name: 'Ann', color: PALETTE[0]! });
 	await waitFor(() => socket!.connected && session.predictor.position !== null);
 	for (let i = 0; i < 10; i++) session.tick();
 	input = NO_INPUT;
