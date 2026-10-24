@@ -1,5 +1,6 @@
 import {
 	COIN_RADIUS,
+	INPUT_RATE_TOLERANCE,
 	MAX_INPUT_CREDITS,
 	MAX_QUEUED_INPUTS,
 	PLAYER_RADIUS,
@@ -37,21 +38,30 @@ export class World {
 		this.players.delete(id);
 	}
 
-	/** Queue a validated input; out-of-order, duplicate and overflowing inputs are dropped. */
+	/** Queue a validated input; stale seqs are ignored and overflow drops the oldest. */
 	queueInput(id: string, msg: InputMessage): void {
 		const entry = this.players.get(id);
-		if (!entry || msg.seq <= entry.highestSeq || entry.queue.length >= MAX_QUEUED_INPUTS) {
+		if (!entry || msg.seq <= entry.highestSeq) {
 			return;
 		}
 		entry.highestSeq = msg.seq;
-		entry.queue.push({ seq: msg.seq, input: { ...msg.input } });
+		const { up, down, left, right } = msg.input;
+		entry.queue.push({ seq: msg.seq, input: { up, down, left, right } });
+		if (entry.queue.length > MAX_QUEUED_INPUTS) {
+			entry.queue.shift();
+		}
+	}
+
+	/** Test hook: inputs queued for a player but not applied yet. */
+	pendingInputs(id: string): readonly InputMessage[] {
+		return this.players.get(id)?.queue ?? [];
 	}
 
 	/** Apply queued inputs (rate limited by credits), then resolve at most one coin pickup. */
 	step(): void {
 		for (const entry of this.players.values()) {
-			entry.credits = Math.min(entry.credits + 1, MAX_INPUT_CREDITS);
-			while (entry.credits > 0 && entry.queue.length > 0) {
+			entry.credits = Math.min(entry.credits + INPUT_RATE_TOLERANCE, MAX_INPUT_CREDITS);
+			while (entry.credits >= 1 && entry.queue.length > 0) {
 				const msg = entry.queue.shift()!;
 				const pos = movePlayer(entry.state, msg.input, TICK_DT);
 				entry.state.x = pos.x;

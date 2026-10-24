@@ -17,9 +17,14 @@ export const TICK_DT = 1 / TICK_RATE;
 /** How far behind the server clock other players are rendered, for interpolation. */
 export const RENDER_DELAY_MS = 100;
 
-/** Max inputs a player can apply in one tick after being idle; sustained rate is one per tick. */
+/** Max inputs a player can apply in one tick after being idle. */
 export const MAX_INPUT_CREDITS = 3;
-export const MAX_QUEUED_INPUTS = 30;
+
+/** Input credits earned per tick; slightly above 1 so a jitter backlog slowly drains. */
+export const INPUT_RATE_TOLERANCE = 1.05;
+
+/** Server-side input backlog per player (about 130 ms); the oldest inputs are dropped beyond it. */
+export const MAX_QUEUED_INPUTS = 4;
 
 /** How much snapshot history the client keeps. */
 export const SNAPSHOT_BUFFER_MS = 1000;

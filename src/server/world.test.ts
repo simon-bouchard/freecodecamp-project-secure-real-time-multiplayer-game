@@ -1,5 +1,10 @@
 import { expect, test } from 'vitest';
-import { COIN_RADIUS, MAX_INPUT_CREDITS, PLAYER_RADIUS } from '../shared/constants.js';
+import {
+	COIN_RADIUS,
+	INPUT_RATE_TOLERANCE,
+	MAX_INPUT_CREDITS,
+	PLAYER_RADIUS,
+} from '../shared/constants.js';
 import { NO_INPUT, circlesOverlap } from '../shared/game.js';
 import type { InputState } from '../shared/protocol.js';
 import { World } from './world.js';
@@ -45,17 +50,47 @@ test('ignores stale or duplicate seq', () => {
 });
 
 test('flooding does not increase speed', () => {
-	const world = worldWithPlayerAt(100, 300);
-	for (let seq = 1; seq <= 30; seq++) world.queueInput('a', { seq, input: RIGHT });
-	for (let i = 0; i < 10; i++) world.step();
-	expect(playerX(world, 'a')).toBeCloseTo(100 + (MAX_INPUT_CREDITS + 9) * 10);
+	const world = worldWithPlayerAt(21, 300);
+	let seq = 0;
+	for (let i = 0; i < 40; i++) {
+		world.queueInput('a', { seq: ++seq, input: RIGHT });
+		world.queueInput('a', { seq: ++seq, input: RIGHT });
+		world.step();
+	}
+	const maxInputs = MAX_INPUT_CREDITS + 40 * INPUT_RATE_TOLERANCE;
+	expect(playerX(world, 'a')).toBeLessThanOrEqual(21 + maxInputs * 10 + 1e-6);
+	expect(playerX(world, 'a')).toBeGreaterThanOrEqual(21 + 40 * 10 - 1e-6);
 });
 
-test('queue cap', () => {
+test('queue cap drops the oldest inputs', () => {
 	const world = worldWithPlayerAt(300, 300);
 	for (let seq = 1; seq <= 40; seq++) world.queueInput('a', { seq, input: NO_INPUT });
+	expect(world.pendingInputs('a').map((m) => m.seq)).toEqual([37, 38, 39, 40]);
 	for (let i = 0; i < 40; i++) world.step();
-	expect(world.snapshot(0).players[0]?.lastSeq).toBe(30);
+	expect(world.snapshot(0).players[0]?.lastSeq).toBe(40);
+});
+
+test('jitter burst does not leave a permanent backlog', () => {
+	const world = worldWithPlayerAt(300, 300);
+	let seq = 0;
+	for (let i = 0; i < 6; i++) world.queueInput('a', { seq: ++seq, input: NO_INPUT });
+	for (let i = 0; i < 100; i++) {
+		world.queueInput('a', { seq: ++seq, input: NO_INPUT });
+		world.step();
+	}
+	expect(world.pendingInputs('a').length).toBeLessThanOrEqual(1);
+});
+
+test('only the four direction flags are stored', () => {
+	const world = worldWithPlayerAt(300, 300);
+	const input = { ...RIGHT, junk: 'x'.repeat(1000) } as InputState;
+	world.queueInput('a', { seq: 1, input });
+	expect(Object.keys(world.pendingInputs('a')[0]!.input).sort()).toEqual([
+		'down',
+		'left',
+		'right',
+		'up',
+	]);
 });
 
 test('coin collected once when two players overlap it', () => {
