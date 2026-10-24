@@ -10,6 +10,7 @@ const JOIN_MESSAGES: Record<JoinFailure, string> = {
 	'color-taken': 'That colour was just taken',
 	full: 'Game is full',
 	invalid: 'Pick a name (1-12 characters)',
+	'unknown-color': 'This page is out of date. Please refresh.',
 	timeout: "Couldn't reach the server, try again",
 };
 
@@ -30,7 +31,12 @@ const panel = new JoinPanel(document.getElementById('join-panel') as HTMLFormEle
 const session = new GameSession(
 	socket,
 	() => keyboard.state,
-	() => panel.show('Your colour was taken while you were disconnected'),
+	(reason) =>
+		panel.show(
+			reason === 'color-taken'
+				? 'Your colour was taken while you were disconnected'
+				: JOIN_MESSAGES[reason],
+		),
 );
 
 async function join(name: string, color: string): Promise<void> {

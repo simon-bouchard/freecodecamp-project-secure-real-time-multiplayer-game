@@ -1,6 +1,19 @@
 import { PALETTE } from '../shared/constants.js';
 import type { ScoreRow } from './render.js';
 
+/** Keep `current` while free, else a random free colour, or null when all are taken. */
+export function pickDefaultColor(
+	taken: Set<string>,
+	current: string | null,
+	rng: () => number = Math.random,
+): string | null {
+	if (current && !taken.has(current)) {
+		return current;
+	}
+	const free = PALETTE.filter((c) => !taken.has(c));
+	return free[Math.floor(rng() * free.length)] ?? null;
+}
+
 /** The join form shown over the game: name field, colour swatches and a join button. */
 export class JoinPanel {
 	private readonly input: HTMLInputElement;
@@ -86,9 +99,7 @@ export class JoinPanel {
 			button.setAttribute('aria-label', label);
 			button.title = owner === undefined ? '' : label;
 		}
-		if (this.selected && taken.has(this.selected)) {
-			this.select(null);
-		}
+		this.select(pickDefaultColor(new Set(taken.keys()), this.selected));
 		this.full = taken.size >= PALETTE.length;
 		this.updateSubmit();
 		if (this.full) {

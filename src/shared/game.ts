@@ -2,7 +2,6 @@ import {
 	COIN_RADIUS,
 	COIN_SPAWN_ATTEMPTS,
 	NAME_MAX_LENGTH,
-	PALETTE,
 	PLAYER_RADIUS,
 	PLAYER_SPEED,
 	innerBounds,
@@ -96,7 +95,7 @@ export function normalizeName(raw: string): string | null {
 	return name;
 }
 
-/** Runtime shape check for untrusted join requests; the name is normalised separately. */
+/** Runtime shape check for untrusted join requests; name and colour are checked by `World`. */
 export function isValidJoinRequest(value: unknown): value is JoinRequest {
 	if (typeof value !== 'object' || value === null) {
 		return false;
@@ -106,7 +105,7 @@ export function isValidJoinRequest(value: unknown): value is JoinRequest {
 		typeof name === 'string' &&
 		name.length <= 64 &&
 		typeof color === 'string' &&
-		PALETTE.includes(color) &&
+		color.length <= 64 &&
 		(token === undefined || (typeof token === 'string' && token.length <= 64))
 	);
 }

@@ -179,3 +179,10 @@ test('input from a spectator is ignored', async () => {
 	const later = await nextSnapshot(a, (s) => s.tick > first.tick + 2);
 	expect(later.players).toEqual([]);
 });
+
+test('in development the root page points to the dev client', async () => {
+	server = await startServer({ port: 0, devClientUrl: 'http://localhost:5173' });
+	const res = await fetch(`http://localhost:${server.port}/`);
+	expect(res.status).toBe(200);
+	expect(await res.text()).toContain('http://localhost:5173');
+});

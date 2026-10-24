@@ -17,6 +17,7 @@ export interface GameServer {
 export interface ServerOptions {
 	port: number;
 	clientDir?: string;
+	devClientUrl?: string;
 	world?: World;
 	tickMs?: number;
 }
@@ -24,7 +25,7 @@ export interface ServerOptions {
 /** Start the HTTP + socket.io server and the fixed-rate game loop. */
 export async function startServer(opts: ServerOptions): Promise<GameServer> {
 	const world = opts.world ?? new World();
-	const app = createApp(opts.clientDir ?? path.resolve('dist/client'));
+	const app = createApp(opts.clientDir ?? path.resolve('dist/client'), opts.devClientUrl);
 	const httpServer = createServer(app);
 	const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer);
 

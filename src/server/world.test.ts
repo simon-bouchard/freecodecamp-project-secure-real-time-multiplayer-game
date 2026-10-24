@@ -349,3 +349,11 @@ test('a new player never spawns on the coin', () => {
 	const snap = world.snapshot(0);
 	expect(circlesOverlap(snap.players[0]!, PLAYER_RADIUS, snap.coin, COIN_RADIUS)).toBe(false);
 });
+
+test('join reports a colour outside the palette as unknown-color', () => {
+	const world = new World();
+	expect(world.join('a', { name: 'Ann', color: '#f15bb5' })).toEqual({
+		ok: false,
+		reason: 'unknown-color',
+	});
+});

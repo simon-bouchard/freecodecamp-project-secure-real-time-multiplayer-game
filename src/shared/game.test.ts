@@ -137,6 +137,10 @@ describe('normalizeName', () => {
 });
 
 describe('isValidJoinRequest', () => {
+	test('accepts any colour string so the server can report unknown colours', () => {
+		expect(isValidJoinRequest({ name: 'Bob', color: '#000000' })).toBe(true);
+	});
+
 	test('accepts a name and palette colour, with or without token', () => {
 		expect(isValidJoinRequest({ name: 'Bob', color: PALETTE[0] })).toBe(true);
 		expect(isValidJoinRequest({ name: 'Bob', color: PALETTE[0], token: 'abc' })).toBe(true);
@@ -146,9 +150,9 @@ describe('isValidJoinRequest', () => {
 		null,
 		{ color: PALETTE[0] },
 		{ name: 5, color: PALETTE[0] },
-		{ name: 'Bob', color: '#000000' },
 		{ name: 'Bob', color: PALETTE[0], token: 5 },
 		{ name: 'x'.repeat(65), color: PALETTE[0] },
+		{ name: 'Bob', color: 'x'.repeat(65) },
 	])('rejects %j', (value) => {
 		expect(isValidJoinRequest(value)).toBe(false);
 	});

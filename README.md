@@ -15,14 +15,16 @@ Requires Node 24+.
 
 ```sh
 npm install
-npm run dev        # game server on :3000 + Vite on :5173, open http://localhost:5173
+npm run dev        # game server on :3000 + Vite on :5173; play on http://localhost:5173
 npm test           # Vitest
 npm run typecheck
 npm run build      # client to dist/client, server to dist/server
 npm start          # serves the built game on $PORT (default 3000)
 ```
 
-Open the game in two tabs to play against yourself.
+Open the game in two tabs to play against yourself. During `npm run dev`, port 3000 only links
+to the Vite page, so you never play against a stale build; Vite refuses to start if 5173 is
+busy.
 
 ## Features
 

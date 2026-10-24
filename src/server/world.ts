@@ -84,6 +84,9 @@ export class World {
 			return { ok: true, token: previous.token };
 		}
 
+		if (!PALETTE.includes(req.color)) {
+			return { ok: false, reason: 'unknown-color' };
+		}
 		if (this.players.size >= MAX_PLAYERS) {
 			return { ok: false, reason: 'full' };
 		}
