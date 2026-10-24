@@ -53,20 +53,20 @@ export function innerBounds(radius: number): Bounds {
 	};
 }
 
-/** Player colours, one player each. No gold, so nobody looks like the coin. */
+/** Player colours, one each; chosen to be far apart perceptually and from the coin's gold. */
 export const PALETTE: readonly string[] = [
-	'#ff4d4d',
-	'#ff9f1c',
-	'#7bd389',
-	'#2ec4b6',
-	'#3a86ff',
-	'#8338ec',
-	'#ff006e',
-	'#c77dff',
-	'#00bbf9',
-	'#f15bb5',
-	'#06d6a0',
-	'#ef8354',
+	'#1aecff',
+	'#1782cf',
+	'#8270db',
+	'#dfb3ff',
+	'#e600d2',
+	'#ff80b5',
+	'#ff1a53',
+	'#ff531a',
+	'#e68600',
+	'#66ff1a',
+	'#2eb87e',
+	'#80ffd4',
 ];
 
 export const MAX_PLAYERS = PALETTE.length;
