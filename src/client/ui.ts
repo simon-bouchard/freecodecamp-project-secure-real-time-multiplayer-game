@@ -24,8 +24,13 @@ export class JoinPanel {
 			button.type = 'button';
 			button.className = 'swatch';
 			button.style.backgroundColor = color;
-			button.setAttribute('aria-label', `Colour ${i + 1}`);
-			button.addEventListener('click', () => this.select(color));
+			button.dataset.label = `Colour ${i + 1}`;
+			button.setAttribute('aria-label', button.dataset.label);
+			button.addEventListener('click', () => {
+				if (button.getAttribute('aria-disabled') !== 'true') {
+					this.select(color);
+				}
+			});
 			container.append(button);
 			this.swatches.set(color, button);
 		});
@@ -60,15 +65,20 @@ export class JoinPanel {
 		this.select(profile.color);
 	}
 
-	/** Grey out colours other players use; does nothing if the set is unchanged. */
-	setTaken(taken: Set<string>): void {
-		const key = [...taken].sort().join();
+	/** Cross out colours other players use (colour -> player name); no-op if unchanged. */
+	setTaken(taken: Map<string, string>): void {
+		const key = JSON.stringify([...taken].sort());
 		if (key === this.takenKey) {
 			return;
 		}
 		this.takenKey = key;
 		for (const [color, button] of this.swatches) {
-			button.disabled = taken.has(color);
+			const owner = taken.get(color);
+			const label = owner === undefined ? button.dataset.label! : `Taken by ${owner}`;
+			button.classList.toggle('taken', owner !== undefined);
+			button.setAttribute('aria-disabled', String(owner !== undefined));
+			button.setAttribute('aria-label', label);
+			button.title = owner === undefined ? '' : label;
 		}
 		if (this.selected && taken.has(this.selected)) {
 			this.select(null);

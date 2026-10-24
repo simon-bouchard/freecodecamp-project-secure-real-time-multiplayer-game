@@ -77,6 +77,7 @@ canvas {
 }
 
 .swatch {
+	position: relative;
 	aspect-ratio: 1;
 	border-radius: 50%;
 	border: 2px solid transparent;
@@ -88,9 +89,32 @@ canvas {
 	box-shadow: 0 0 0 2px #111 inset;
 }
 
-.swatch:disabled {
-	opacity: 0.2;
+.swatch.taken {
+	opacity: 0.45;
+	filter: saturate(0.4);
 	cursor: not-allowed;
+}
+
+.swatch.taken::before,
+.swatch.taken::after {
+	content: '';
+	position: absolute;
+	top: 50%;
+	left: 10%;
+	width: 80%;
+	height: 3px;
+	margin-top: -1.5px;
+	background: #fff;
+	border-radius: 2px;
+	box-shadow: 0 0 2px #000;
+}
+
+.swatch.taken::before {
+	transform: rotate(45deg);
+}
+
+.swatch.taken::after {
+	transform: rotate(-45deg);
 }
 
 .join-error {

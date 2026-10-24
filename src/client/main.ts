@@ -54,7 +54,7 @@ function frame(now: number): void {
 	drawFrame(ctx, view);
 	scoreboard.update(view.scoreboard);
 	if (panel.visible) {
-		panel.setTaken(new Set(view.scoreboard.map((row) => row.color)));
+		panel.setTaken(new Map(view.scoreboard.map((row) => [row.color, row.name])));
 	}
 	requestAnimationFrame(frame);
 }
