@@ -40,10 +40,31 @@ export interface Snapshot {
 	coin: CoinState;
 }
 
+export type RoundPhase = 'waiting' | 'playing' | 'results';
+
+/** Round status; `endsAt` is the server time the phase ends (null while waiting). */
+export interface RoundState {
+	phase: RoundPhase;
+	endsAt: number | null;
+	winners: string[];
+}
+
+/** Join or rejoin; `token` from an earlier join takes that player back after a reconnect. */
+export interface JoinRequest {
+	name: string;
+	color: string;
+	token?: string;
+}
+
+export type JoinFailure = 'invalid' | 'color-taken' | 'full';
+
+export type JoinResult = { ok: true; token: string } | { ok: false; reason: JoinFailure };
+
 export interface ServerToClientEvents {
 	snapshot: (snapshot: Snapshot) => void;
 }
 
 export interface ClientToServerEvents {
 	input: (msg: InputMessage) => void;
+	join: (req: JoinRequest, ack: (res: JoinResult) => void) => void;
 }

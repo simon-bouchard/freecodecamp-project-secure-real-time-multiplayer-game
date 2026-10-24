@@ -1,11 +1,13 @@
 import {
 	COIN_RADIUS,
 	COIN_SPAWN_ATTEMPTS,
+	NAME_MAX_LENGTH,
+	PALETTE,
 	PLAYER_RADIUS,
 	PLAYER_SPEED,
 	innerBounds,
 } from './constants.js';
-import type { InputMessage, InputState, Vec } from './protocol.js';
+import type { InputMessage, InputState, JoinRequest, Vec } from './protocol.js';
 
 export const NO_INPUT: InputState = { up: false, down: false, left: false, right: false };
 
@@ -78,4 +80,38 @@ export function isValidInputMessage(value: unknown): value is InputMessage {
 	}
 	const keys = input as Record<string, unknown>;
 	return (['up', 'down', 'left', 'right'] as const).every((k) => typeof keys[k] === 'boolean');
+}
+
+/** Trimmed name if it is 1-12 code points with no control characters, else null. */
+export function normalizeName(raw: string): string | null {
+	const name = raw.trim();
+	const length = [...name].length;
+	if (length === 0 || length > NAME_MAX_LENGTH || /\p{Cc}/u.test(name)) {
+		return null;
+	}
+	return name;
+}
+
+/** Runtime shape check for untrusted join requests; the name is normalised separately. */
+export function isValidJoinRequest(value: unknown): value is JoinRequest {
+	if (typeof value !== 'object' || value === null) {
+		return false;
+	}
+	const { name, color, token } = value as Record<string, unknown>;
+	return (
+		typeof name === 'string' &&
+		name.length <= 64 &&
+		typeof color === 'string' &&
+		PALETTE.includes(color) &&
+		(token === undefined || (typeof token === 'string' && token.length <= 64))
+	);
+}
+
+/** Copy of `players` sorted by score (high first), then name, then id. */
+export function sortScoreboard<T extends { id: string; name: string; score: number }>(
+	players: T[],
+): T[] {
+	return [...players].sort(
+		(a, b) => b.score - a.score || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+	);
 }

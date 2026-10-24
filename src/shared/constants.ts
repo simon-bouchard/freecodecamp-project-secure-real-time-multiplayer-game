@@ -52,3 +52,25 @@ export function innerBounds(radius: number): Bounds {
 		maxY: ARENA.y + ARENA.height - inset,
 	};
 }
+
+/** Player colours, one player each. No gold, so nobody looks like the coin. */
+export const PALETTE: readonly string[] = [
+	'#ff4d4d',
+	'#ff9f1c',
+	'#7bd389',
+	'#2ec4b6',
+	'#3a86ff',
+	'#8338ec',
+	'#ff006e',
+	'#c77dff',
+	'#00bbf9',
+	'#f15bb5',
+	'#06d6a0',
+	'#ef8354',
+];
+
+export const MAX_PLAYERS = PALETTE.length;
+export const NAME_MAX_LENGTH = 12;
+
+export const ROUND_TICKS = 60 * TICK_RATE;
+export const RESULTS_TICKS = 8 * TICK_RATE;

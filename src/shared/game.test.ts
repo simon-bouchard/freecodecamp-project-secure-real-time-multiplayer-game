@@ -1,13 +1,16 @@
 import { describe, expect, test } from 'vitest';
-import { COIN_RADIUS, COIN_SPAWN_ATTEMPTS, innerBounds } from './constants.js';
+import { COIN_RADIUS, COIN_SPAWN_ATTEMPTS, PALETTE, innerBounds } from './constants.js';
 import {
 	NO_INPUT,
 	calculateRank,
 	circlesOverlap,
 	isValidInputMessage,
+	isValidJoinRequest,
 	movePlayer,
+	normalizeName,
 	pickCoinSpawn,
 	randomPointInArena,
+	sortScoreboard,
 } from './game.js';
 
 describe('movePlayer', () => {
@@ -111,4 +114,47 @@ describe('isValidInputMessage', () => {
 	])('invalid input rejected: %j', (v) => {
 		expect(isValidInputMessage(v)).toBe(false);
 	});
+});
+
+describe('normalizeName', () => {
+	test.each([
+		['  Bob  ', 'Bob'],
+		['', null],
+		['   ', null],
+		['a'.repeat(12), 'a'.repeat(12)],
+		['a'.repeat(13), null],
+		['\u0007bob', null],
+		['\u{1F600}'.repeat(12), '\u{1F600}'.repeat(12)],
+		['\u{1F600}'.repeat(13), null],
+	])('%j -> %j', (raw, expected) => {
+		expect(normalizeName(raw)).toBe(expected);
+	});
+});
+
+describe('isValidJoinRequest', () => {
+	test('accepts a name and palette colour, with or without token', () => {
+		expect(isValidJoinRequest({ name: 'Bob', color: PALETTE[0] })).toBe(true);
+		expect(isValidJoinRequest({ name: 'Bob', color: PALETTE[0], token: 'abc' })).toBe(true);
+	});
+
+	test.each([
+		null,
+		{ color: PALETTE[0] },
+		{ name: 5, color: PALETTE[0] },
+		{ name: 'Bob', color: '#000000' },
+		{ name: 'Bob', color: PALETTE[0], token: 5 },
+		{ name: 'x'.repeat(65), color: PALETTE[0] },
+	])('rejects %j', (value) => {
+		expect(isValidJoinRequest(value)).toBe(false);
+	});
+});
+
+test('sortScoreboard orders by score, then name, without mutating', () => {
+	const players = [
+		{ id: '1', name: 'b', score: 2 },
+		{ id: '2', name: 'a', score: 2 },
+		{ id: '3', name: 'c', score: 5 },
+	];
+	expect(sortScoreboard(players).map((p) => p.id)).toEqual(['3', '2', '1']);
+	expect(players.map((p) => p.id)).toEqual(['1', '2', '3']);
 });
