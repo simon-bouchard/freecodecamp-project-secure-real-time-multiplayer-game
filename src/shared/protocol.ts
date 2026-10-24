@@ -20,6 +20,8 @@ export interface InputMessage {
 /** A player as the server sees it; `lastSeq` is the last input applied. */
 export interface PlayerState {
 	id: string;
+	name: string;
+	color: string;
 	x: number;
 	y: number;
 	score: number;
@@ -38,6 +40,7 @@ export interface Snapshot {
 	time: number;
 	players: PlayerState[];
 	coin: CoinState;
+	round: RoundState;
 }
 
 export type RoundPhase = 'waiting' | 'playing' | 'results';

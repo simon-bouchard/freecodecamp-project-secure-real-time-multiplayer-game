@@ -3,7 +3,12 @@ import {
 	COIN_RADIUS,
 	INPUT_RATE_TOLERANCE,
 	MAX_INPUT_CREDITS,
+	MAX_PLAYERS,
+	PALETTE,
 	PLAYER_RADIUS,
+	RESULTS_TICKS,
+	ROUND_TICKS,
+	TICK_MS,
 } from '../shared/constants.js';
 import { NO_INPUT, circlesOverlap } from '../shared/game.js';
 import type { InputState } from '../shared/protocol.js';
@@ -159,4 +164,179 @@ test('snapshot carries time and tick', () => {
 	world.step();
 	world.step();
 	expect(world.snapshot(1234)).toMatchObject({ tick: 2, time: 1234 });
+});
+
+function tokens(): () => string {
+	let n = 0;
+	return () => `t${++n}`;
+}
+
+function color(i: number): string {
+	return PALETTE[i]!;
+}
+
+function steps(world: World, n: number): void {
+	for (let i = 0; i < n; i++) world.step();
+}
+
+test('join assigns a token and the chosen colour', () => {
+	const world = new World(Math.random, tokens());
+	expect(world.join('a', { name: ' Ann ', color: color(3) })).toEqual({ ok: true, token: 't1' });
+	const snap = world.snapshot(0);
+	expect(snap.players[0]).toMatchObject({ id: 'a', name: 'Ann', color: color(3), score: 0 });
+	expect(JSON.stringify(snap)).not.toContain('t1');
+});
+
+test('join rejects a taken colour', () => {
+	const world = new World();
+	world.join('a', { name: 'Ann', color: color(0) });
+	expect(world.join('b', { name: 'Bob', color: color(0) })).toEqual({
+		ok: false,
+		reason: 'color-taken',
+	});
+});
+
+test('join rejects when the game is full', () => {
+	const world = new World();
+	for (let i = 0; i < MAX_PLAYERS; i++) world.join(`p${i}`, { name: 'p', color: color(i) });
+	expect(world.join('late', { name: 'Late', color: color(0) })).toEqual({
+		ok: false,
+		reason: 'full',
+	});
+});
+
+test('join rejects a second join on the same id', () => {
+	const world = new World();
+	world.join('a', { name: 'Ann', color: color(0) });
+	expect(world.join('a', { name: 'Ann', color: color(1) })).toEqual({
+		ok: false,
+		reason: 'invalid',
+	});
+});
+
+test('join rejects a blank name', () => {
+	const world = new World();
+	expect(world.join('a', { name: '   ', color: color(0) })).toEqual({
+		ok: false,
+		reason: 'invalid',
+	});
+});
+
+test('token hands the player over', () => {
+	const world = new World(Math.random, tokens());
+	world.join('a', { name: 'Ann', color: color(2) });
+	world.setScore('a', 4);
+	world.setPlayerPosition('a', { x: 100, y: 100 });
+	world.setCoinPosition({ x: 600, y: 440 });
+	world.queueInput('a', { seq: 7, input: RIGHT });
+	expect(world.join('b', { name: 'x', color: color(5), token: 't1' })).toEqual({
+		ok: true,
+		token: 't1',
+	});
+	const players = world.snapshot(0).players;
+	expect(players).toHaveLength(1);
+	expect(players[0]).toMatchObject({
+		id: 'b',
+		name: 'Ann',
+		color: color(2),
+		score: 4,
+		x: 100,
+		y: 100,
+		lastSeq: 0,
+	});
+	expect(world.pendingInputs('b')).toEqual([]);
+	world.queueInput('b', { seq: 1, input: RIGHT });
+	expect(world.pendingInputs('b')).toHaveLength(1);
+	world.removePlayer('a');
+	expect(world.snapshot(0).players.map((p) => p.id)).toEqual(['b']);
+});
+
+test('unknown token is a normal join', () => {
+	const world = new World(Math.random, tokens());
+	expect(world.join('a', { name: 'Ann', color: color(0), token: 'nope' })).toEqual({
+		ok: true,
+		token: 't1',
+	});
+});
+
+test('round ends after ROUND_TICKS', () => {
+	const world = new World();
+	world.join('a', { name: 'Ann', color: color(0) });
+	expect(world.phase).toBe('playing');
+	steps(world, ROUND_TICKS - 1);
+	expect(world.phase).toBe('playing');
+	world.step();
+	expect(world.phase).toBe('results');
+});
+
+test('winners are all top scorers', () => {
+	const world = new World();
+	world.addPlayer('a');
+	world.addPlayer('b');
+	world.addPlayer('c');
+	world.setCoinPosition({ x: 600, y: 440 });
+	['a', 'b', 'c'].forEach((id) => world.setPlayerPosition(id, { x: 100, y: 100 }));
+	world.setScore('a', 3);
+	world.setScore('b', 3);
+	world.setScore('c', 1);
+	steps(world, ROUND_TICKS);
+	expect(world.snapshot(0).round.winners).toEqual(['a', 'b']);
+});
+
+test('no movement or pickups during results', () => {
+	const world = worldWithPlayerAt(300, 300);
+	steps(world, ROUND_TICKS);
+	world.setCoinPosition({ x: 300, y: 300 });
+	world.queueInput('a', { seq: 1, input: RIGHT });
+	world.step();
+	const p = world.snapshot(0).players[0];
+	expect(p).toMatchObject({ x: 300, y: 300, score: 0, lastSeq: 1 });
+});
+
+test('next round resets scores and coin', () => {
+	const world = worldWithPlayerAt(300, 300);
+	world.setScore('a', 5);
+	steps(world, ROUND_TICKS);
+	const coinId = world.snapshot(0).coin.id;
+	steps(world, RESULTS_TICKS);
+	const snap = world.snapshot(0);
+	expect(world.phase).toBe('playing');
+	expect(snap.players[0]?.score).toBe(0);
+	expect(snap.coin.id).toBe(coinId + 1);
+	expect(snap.round.winners).toEqual([]);
+});
+
+test('joining during results starts at 0 and cannot move', () => {
+	const world = worldWithPlayerAt(300, 300);
+	world.setScore('a', 2);
+	steps(world, ROUND_TICKS);
+	world.join('b', { name: 'Bob', color: color(7) });
+	world.setPlayerPosition('b', { x: 200, y: 200 });
+	world.queueInput('b', { seq: 1, input: RIGHT });
+	world.step();
+	expect(world.phase).toBe('results');
+	expect(world.snapshot(0).players.find((p) => p.id === 'b')).toMatchObject({
+		x: 200,
+		score: 0,
+	});
+});
+
+test('endsAt counts down', () => {
+	const world = new World();
+	world.join('a', { name: 'Ann', color: color(0) });
+	expect(world.snapshot(1000).round.endsAt).toBeCloseTo(1000 + ROUND_TICKS * TICK_MS);
+	world.step();
+	expect(world.snapshot(1000).round.endsAt).toBeCloseTo(1000 + (ROUND_TICKS - 1) * TICK_MS);
+});
+
+test('empty game waits and the next join gets a fresh round', () => {
+	const world = new World();
+	world.join('a', { name: 'Ann', color: color(0) });
+	steps(world, 100);
+	world.removePlayer('a');
+	world.step();
+	expect(world.phase).toBe('waiting');
+	expect(world.snapshot(0).round.endsAt).toBeNull();
+	world.join('b', { name: 'Bob', color: color(1) });
+	expect(world.snapshot(0).round.endsAt).toBeCloseTo(ROUND_TICKS * TICK_MS);
 });

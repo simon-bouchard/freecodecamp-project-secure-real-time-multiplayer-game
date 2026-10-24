@@ -1,19 +1,41 @@
+import { randomUUID } from 'node:crypto';
 import {
 	COIN_RADIUS,
 	INPUT_RATE_TOLERANCE,
 	MAX_INPUT_CREDITS,
+	MAX_PLAYERS,
 	MAX_QUEUED_INPUTS,
+	PALETTE,
 	PLAYER_RADIUS,
+	RESULTS_TICKS,
+	ROUND_TICKS,
 	TICK_DT,
+	TICK_MS,
 } from '../shared/constants.js';
-import { circlesOverlap, movePlayer, pickCoinSpawn, randomPointInArena } from '../shared/game.js';
-import type { CoinState, InputMessage, PlayerState, Snapshot, Vec } from '../shared/protocol.js';
+import {
+	circlesOverlap,
+	movePlayer,
+	normalizeName,
+	pickCoinSpawn,
+	randomPointInArena,
+} from '../shared/game.js';
+import type {
+	CoinState,
+	InputMessage,
+	JoinRequest,
+	JoinResult,
+	PlayerState,
+	RoundPhase,
+	Snapshot,
+	Vec,
+} from '../shared/protocol.js';
 
 interface PlayerEntry {
 	state: PlayerState;
 	queue: InputMessage[];
 	credits: number;
 	highestSeq: number;
+	token: string;
 }
 
 /** Authoritative game state. Advance it with `step()`, once per server tick. */
@@ -21,17 +43,56 @@ export class World {
 	private readonly players = new Map<string, PlayerEntry>();
 	private coin: CoinState;
 	private tick = 0;
+	private roundPhase: RoundPhase = 'waiting';
+	private ticksLeft = 0;
+	private winners: string[] = [];
 
-	constructor(private readonly rng: () => number = Math.random) {
+	constructor(
+		private readonly rng: () => number = Math.random,
+		private readonly newToken: () => string = randomUUID,
+	) {
 		this.coin = { id: 1, ...pickCoinSpawn([], rng) };
 	}
 
-	/** Add a player at a random position with a fresh score and input sequence. */
-	addPlayer(id: string): PlayerState {
+	get phase(): RoundPhase {
+		return this.roundPhase;
+	}
+
+	/** Add a player with no checks; the first player into an empty game starts a round. */
+	addPlayer(id: string, name = id, color = this.freeColor()): PlayerState {
 		const pos = randomPointInArena(PLAYER_RADIUS, this.rng);
-		const state: PlayerState = { id, x: pos.x, y: pos.y, score: 0, lastSeq: 0 };
-		this.players.set(id, { state, queue: [], credits: MAX_INPUT_CREDITS, highestSeq: 0 });
+		const state: PlayerState = { id, name, color, x: pos.x, y: pos.y, score: 0, lastSeq: 0 };
+		const entry = { state, queue: [], credits: MAX_INPUT_CREDITS, highestSeq: 0, token: '' };
+		this.players.set(id, entry);
+		if (this.roundPhase === 'waiting') {
+			this.startRound();
+		}
 		return { ...state };
+	}
+
+	/** Join as a new player, or take back the player that owns `req.token` after a reconnect. */
+	join(id: string, req: JoinRequest): JoinResult {
+		const name = normalizeName(req.name);
+		if (this.players.has(id) || name === null) {
+			return { ok: false, reason: 'invalid' };
+		}
+
+		const previous = req.token ? this.findByToken(req.token) : undefined;
+		if (previous) {
+			this.handOver(previous, id);
+			return { ok: true, token: previous.token };
+		}
+
+		if (this.players.size >= MAX_PLAYERS) {
+			return { ok: false, reason: 'full' };
+		}
+		if ([...this.players.values()].some((e) => e.state.color === req.color)) {
+			return { ok: false, reason: 'color-taken' };
+		}
+		this.addPlayer(id, name, req.color);
+		const token = this.newToken();
+		this.players.get(id)!.token = token;
+		return { ok: true, token };
 	}
 
 	removePlayer(id: string): void {
@@ -57,26 +118,23 @@ export class World {
 		return this.players.get(id)?.queue ?? [];
 	}
 
-	/** Apply queued inputs (rate limited by credits), then resolve at most one coin pickup. */
+	/** Advance one tick of the current round phase. */
 	step(): void {
-		for (const entry of this.players.values()) {
-			entry.credits = Math.min(entry.credits + INPUT_RATE_TOLERANCE, MAX_INPUT_CREDITS);
-			while (entry.credits >= 1 && entry.queue.length > 0) {
-				const msg = entry.queue.shift()!;
-				const pos = movePlayer(entry.state, msg.input, TICK_DT);
-				entry.state.x = pos.x;
-				entry.state.y = pos.y;
-				entry.state.lastSeq = msg.seq;
-				entry.credits--;
-			}
+		if (this.players.size === 0) {
+			this.roundPhase = 'waiting';
 		}
 
-		for (const { state } of this.players.values()) {
-			if (circlesOverlap(state, PLAYER_RADIUS, this.coin, COIN_RADIUS)) {
-				state.score++;
-				const positions = [...this.players.values()].map((e) => e.state);
-				this.coin = { id: this.coin.id + 1, ...pickCoinSpawn(positions, this.rng) };
-				break;
+		if (this.roundPhase === 'playing') {
+			this.applyInputs();
+			this.collectCoin();
+			if (--this.ticksLeft <= 0) {
+				this.endRound();
+			}
+		} else if (this.roundPhase === 'results') {
+			this.discardInputs();
+			if (--this.ticksLeft <= 0) {
+				this.respawnCoin();
+				this.startRound();
 			}
 		}
 
@@ -90,6 +148,11 @@ export class World {
 			time,
 			players: [...this.players.values()].map((e) => ({ ...e.state })),
 			coin: { ...this.coin },
+			round: {
+				phase: this.roundPhase,
+				endsAt: this.roundPhase === 'waiting' ? null : time + this.ticksLeft * TICK_MS,
+				winners: [...this.winners],
+			},
 		};
 	}
 
@@ -105,5 +168,90 @@ export class World {
 	/** Test hook: move the current coin without changing its id. */
 	setCoinPosition(pos: Vec): void {
 		this.coin = { ...this.coin, x: pos.x, y: pos.y };
+	}
+
+	/** Test hook: set a player's score. */
+	setScore(id: string, score: number): void {
+		const entry = this.players.get(id);
+		if (entry) {
+			entry.state.score = score;
+		}
+	}
+
+	private applyInputs(): void {
+		for (const entry of this.players.values()) {
+			entry.credits = Math.min(entry.credits + INPUT_RATE_TOLERANCE, MAX_INPUT_CREDITS);
+			while (entry.credits >= 1 && entry.queue.length > 0) {
+				const msg = entry.queue.shift()!;
+				const pos = movePlayer(entry.state, msg.input, TICK_DT);
+				entry.state.x = pos.x;
+				entry.state.y = pos.y;
+				entry.state.lastSeq = msg.seq;
+				entry.credits--;
+			}
+		}
+	}
+
+	/** Acknowledge queued inputs without moving, so client prediction stays in sync. */
+	private discardInputs(): void {
+		for (const entry of this.players.values()) {
+			const last = entry.queue.at(-1);
+			if (last) {
+				entry.state.lastSeq = last.seq;
+				entry.queue = [];
+			}
+		}
+	}
+
+	private collectCoin(): void {
+		for (const { state } of this.players.values()) {
+			if (circlesOverlap(state, PLAYER_RADIUS, this.coin, COIN_RADIUS)) {
+				state.score++;
+				this.respawnCoin();
+				return;
+			}
+		}
+	}
+
+	private respawnCoin(): void {
+		const positions = [...this.players.values()].map((e) => e.state);
+		this.coin = { id: this.coin.id + 1, ...pickCoinSpawn(positions, this.rng) };
+	}
+
+	private startRound(): void {
+		for (const { state } of this.players.values()) {
+			state.score = 0;
+		}
+		this.roundPhase = 'playing';
+		this.ticksLeft = ROUND_TICKS;
+		this.winners = [];
+	}
+
+	private endRound(): void {
+		const states = [...this.players.values()].map((e) => e.state);
+		const top = Math.max(...states.map((s) => s.score));
+		this.winners = states.filter((s) => s.score === top).map((s) => s.id);
+		this.roundPhase = 'results';
+		this.ticksLeft = RESULTS_TICKS;
+	}
+
+	private findByToken(token: string): PlayerEntry | undefined {
+		return [...this.players.values()].find((e) => e.token === token);
+	}
+
+	/** Move a player to a new connection id, resetting input sequencing for the new client. */
+	private handOver(entry: PlayerEntry, newId: string): void {
+		this.players.delete(entry.state.id);
+		entry.state.id = newId;
+		entry.state.lastSeq = 0;
+		entry.highestSeq = 0;
+		entry.queue = [];
+		entry.credits = MAX_INPUT_CREDITS;
+		this.players.set(newId, entry);
+	}
+
+	private freeColor(): string {
+		const taken = new Set([...this.players.values()].map((e) => e.state.color));
+		return PALETTE.find((c) => !taken.has(c)) ?? PALETTE[0]!;
 	}
 }

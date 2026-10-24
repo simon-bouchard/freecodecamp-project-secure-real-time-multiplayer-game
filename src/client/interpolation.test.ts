@@ -4,11 +4,17 @@ import type { PlayerState, Snapshot } from '../shared/protocol.js';
 import { SnapshotBuffer } from './interpolation.js';
 
 function player(id: string, x: number): PlayerState {
-	return { id, x, y: 200, score: 0, lastSeq: 0 };
+	return { id, name: id, color: '#ff4d4d', x, y: 200, score: 0, lastSeq: 0 };
 }
 
 function snap(time: number, players: PlayerState[]): Snapshot {
-	return { tick: time, time, players, coin: { id: 1, x: 50, y: 50 } };
+	return {
+		tick: time,
+		time,
+		players,
+		coin: { id: 1, x: 50, y: 50 },
+		round: { phase: 'playing', endsAt: null, winners: [] },
+	};
 }
 
 function twoSnapshots(first: PlayerState[], second: PlayerState[]): SnapshotBuffer {
