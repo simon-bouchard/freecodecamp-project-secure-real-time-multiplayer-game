@@ -1,13 +1,35 @@
 import { ARENA, CANVAS, COIN_RADIUS, PLAYER_RADIUS } from '../shared/constants.js';
-import type { CoinState, Vec } from '../shared/protocol.js';
+import type { CoinState, RoundState, Vec } from '../shared/protocol.js';
+
+/** A player as drawn this frame. */
+export interface DrawnPlayer {
+	id: string;
+	x: number;
+	y: number;
+	name: string;
+	color: string;
+	self: boolean;
+}
+
+/** One scoreboard line. */
+export interface ScoreRow {
+	id: string;
+	name: string;
+	color: string;
+	score: number;
+	self: boolean;
+}
 
 /** Everything needed to draw one frame. */
 export interface FrameView {
-	self: Vec | null;
-	others: Map<string, Vec>;
+	players: DrawnPlayer[];
 	coin: CoinState | null;
+	selfId: string | null;
 	score: number;
 	rank: { rank: number; total: number };
+	round: RoundState | null;
+	serverNow: number;
+	scoreboard: ScoreRow[];
 }
 
 const COLORS = {
@@ -15,8 +37,6 @@ const COLORS = {
 	wall: '#a1a1a1',
 	text: '#ffffff',
 	coin: '#FFD700',
-	self: 'yellow',
-	other: 'red',
 } as const;
 
 function drawSmileyFace(ctx: CanvasRenderingContext2D, pos: Vec, color: string): void {
@@ -74,10 +94,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, view: FrameView): void 
 		ctx.fill();
 	}
 
-	for (const pos of view.others.values()) {
-		drawSmileyFace(ctx, pos, COLORS.other);
-	}
-	if (view.self) {
-		drawSmileyFace(ctx, view.self, COLORS.self);
+	const ordered = [...view.players].sort((a, b) => Number(a.self) - Number(b.self));
+	for (const player of ordered) {
+		drawSmileyFace(ctx, player, player.color);
 	}
 }
