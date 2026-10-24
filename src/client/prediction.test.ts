@@ -69,3 +69,19 @@ test('reset clears state', () => {
 	p.reconcile(server(100, 0));
 	expect(p.applyLocalInput(RIGHT)?.seq).toBe(1);
 });
+
+test('draws between the previous and current predicted tick', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	p.applyLocalInput(RIGHT);
+	expect(p.displayPosition(0, 0.5).x).toBeCloseTo(105);
+	expect(p.displayPosition(0, 1).x).toBeCloseTo(110);
+});
+
+test('holdStill stops in-between drawing', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	p.applyLocalInput(RIGHT);
+	p.holdStill();
+	expect(p.displayPosition(0, 0.5).x).toBeCloseTo(110);
+});
