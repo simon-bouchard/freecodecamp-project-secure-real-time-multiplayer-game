@@ -1,0 +1,19 @@
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	background: #111;
+}
+
+main {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+}
+
+canvas {
+	max-width: 100%;
+	height: auto;
+	border-radius: 4px;
+}
