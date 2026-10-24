@@ -340,3 +340,12 @@ test('empty game waits and the next join gets a fresh round', () => {
 	world.join('b', { name: 'Bob', color: color(1) });
 	expect(world.snapshot(0).round.endsAt).toBeCloseTo(ROUND_TICKS * TICK_MS);
 });
+
+test('a new player never spawns on the coin', () => {
+	const sequence = [0.5, 0.5, 0.5, 0.5, 0.1, 0.1];
+	let i = 0;
+	const world = new World(() => sequence[i++] ?? 0.9);
+	world.addPlayer('a');
+	const snap = world.snapshot(0);
+	expect(circlesOverlap(snap.players[0]!, PLAYER_RADIUS, snap.coin, COIN_RADIUS)).toBe(false);
+});

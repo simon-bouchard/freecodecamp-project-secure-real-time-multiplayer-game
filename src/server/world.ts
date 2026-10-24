@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
 	COIN_RADIUS,
+	COIN_SPAWN_ATTEMPTS,
 	INPUT_RATE_TOLERANCE,
 	MAX_INPUT_CREDITS,
 	MAX_PLAYERS,
@@ -60,7 +61,7 @@ export class World {
 
 	/** Add a player with no checks; the first player into an empty game starts a round. */
 	addPlayer(id: string, name = id, color = this.freeColor()): PlayerState {
-		const pos = randomPointInArena(PLAYER_RADIUS, this.rng);
+		const pos = this.playerSpawn();
 		const state: PlayerState = { id, name, color, x: pos.x, y: pos.y, score: 0, lastSeq: 0 };
 		const entry = { state, queue: [], credits: MAX_INPUT_CREDITS, highestSeq: 0, token: '' };
 		this.players.set(id, entry);
@@ -248,6 +249,18 @@ export class World {
 		entry.queue = [];
 		entry.credits = MAX_INPUT_CREDITS;
 		this.players.set(newId, entry);
+	}
+
+	/** Random player position not touching the coin, so nobody scores just by joining. */
+	private playerSpawn(): Vec {
+		let pos = randomPointInArena(PLAYER_RADIUS, this.rng);
+		for (let i = 1; i < COIN_SPAWN_ATTEMPTS; i++) {
+			if (!circlesOverlap(pos, PLAYER_RADIUS, this.coin, COIN_RADIUS)) {
+				return pos;
+			}
+			pos = randomPointInArena(PLAYER_RADIUS, this.rng);
+		}
+		return pos;
 	}
 
 	private freeColor(): string {
