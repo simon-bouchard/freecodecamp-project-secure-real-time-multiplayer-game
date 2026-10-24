@@ -1,6 +1,62 @@
-# Secure Real Time Multiplayer Game
+# Coin Race
 
-This is the boilerplate for the Secure Real Time Multiplayer Game project. Instructions for building your project can be found at https://www.freecodecamp.org/learn/information-security/information-security-projects/secure-real-time-multiplayer-game
-
+A small real-time multiplayer browser game. Every player is a smiley face in a walled arena;
+touch the gold coin to score a point, then race everyone to the next one.
 
 #### [Deployed project link](https://freecodecamp-project-secure-real-time.onrender.com)
+
+Started as the freeCodeCamp "Secure Real Time Multiplayer Game" project, now rewritten in
+TypeScript with a server-authoritative game loop.
+
+## Running it
+
+Requires Node 24+.
+
+```sh
+npm install
+npm run dev        # game server on :3000 + Vite on :5173, open http://localhost:5173
+npm test           # Vitest
+npm run typecheck
+npm run build      # client to dist/client, server to dist/server
+npm start          # serves the built game on $PORT (default 3000)
+```
+
+Open the game in two tabs to play against yourself.
+
+## How the netcode works
+
+| Step                                                               | Where                                                          |
+| ------------------------------------------------------------------ | -------------------------------------------------------------- |
+| Shared rules (movement, walls, coin spawn, rank, input validation) | `src/shared/game.ts`, `src/shared/constants.ts`                |
+| Wire format and typed socket events                                | `src/shared/protocol.ts`                                       |
+| Authoritative simulation, 30 ticks per second                      | `src/server/world.ts`, `src/server/server.ts`                  |
+| Keyboard input                                                     | `src/client/input.ts`                                          |
+| Client-side prediction and reconciliation                          | `src/client/prediction.ts`                                     |
+| Snapshot interpolation of other players                            | `src/client/interpolation.ts`                                  |
+| Drawing                                                            | `src/client/render.ts`, wired together in `src/client/main.ts` |
+
+1. **Input.** Each client tick (30 per second) while a key is held, the client sends its key
+   state with an increasing sequence number. It never sends a position or score.
+2. **Server tick.** The server applies each player's queued inputs in order, moves them with
+   the shared movement code, keeps them inside the walls and checks the coin. Only the
+   server awards points, so a coin can only be collected once. A credit system limits each
+   player to one input per tick on average, so flooding messages does not make you faster.
+3. **Snapshots.** After every tick the server broadcasts all players, the coin and, per
+   player, the last input sequence it applied.
+4. **Prediction.** Your own player moves the moment you press a key: the client runs the same
+   movement code locally and remembers inputs the server has not confirmed yet.
+5. **Reconciliation.** On each snapshot the client starts from the server's position for
+   you, drops confirmed inputs and replays the rest. Small differences are smoothed out
+   visually; big ones snap.
+6. **Interpolation.** Other players are drawn 100 ms in the past, blended between the two
+   snapshots around that time, so they move smoothly even though updates arrive 30 times a
+   second.
+
+## Deploying on Render
+
+Use a Node web service with:
+
+- Build command: `npm install && npm run build`
+- Start command: `npm start`
+
+Render sets `PORT` automatically.

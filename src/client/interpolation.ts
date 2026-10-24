@@ -17,7 +17,10 @@ export class SnapshotBuffer {
 	push(snapshot: Snapshot, receivedAt: number): void {
 		this.entries.push({ snapshot, receivedAt });
 		const newest = snapshot.time;
-		while (this.entries.length > 2 && newest - this.entries[0]!.snapshot.time > SNAPSHOT_BUFFER_MS) {
+		while (
+			this.entries.length > 2 &&
+			newest - this.entries[0]!.snapshot.time > SNAPSHOT_BUFFER_MS
+		) {
 			this.entries.shift();
 		}
 	}
@@ -63,7 +66,9 @@ export class SnapshotBuffer {
 			const prev = before.get(p.id);
 			result.set(
 				p.id,
-				prev ? { x: prev.x + (p.x - prev.x) * t, y: prev.y + (p.y - prev.y) * t } : { x: p.x, y: p.y },
+				prev
+					? { x: prev.x + (p.x - prev.x) * t, y: prev.y + (p.y - prev.y) * t }
+					: { x: p.x, y: p.y },
 			);
 		}
 		return result;
