@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { NO_INPUT } from '../shared/game.js';
-import { Keyboard } from './input.js';
+import { Keyboard, isTextField } from './input.js';
 
 function key(type: 'keydown' | 'keyup', k: string): Event {
 	return Object.assign(new Event(type, { cancelable: true }), { key: k });
@@ -46,4 +46,12 @@ test('arrow keys do not scroll the page', () => {
 	const event = key('keydown', 'ArrowDown');
 	target.dispatchEvent(event);
 	expect(event.defaultPrevented).toBe(true);
+});
+
+test('isTextField recognises text inputs only', () => {
+	expect(isTextField({ tagName: 'INPUT' })).toBe(true);
+	expect(isTextField({ tagName: 'TEXTAREA' })).toBe(true);
+	expect(isTextField({ tagName: 'CANVAS' })).toBe(false);
+	expect(isTextField(null)).toBe(false);
+	expect(isTextField(new EventTarget())).toBe(false);
 });

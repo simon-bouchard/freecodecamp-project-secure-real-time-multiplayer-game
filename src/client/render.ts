@@ -1,5 +1,6 @@
 import { ARENA, CANVAS, COIN_RADIUS, PLAYER_RADIUS } from '../shared/constants.js';
 import type { CoinState, RoundState, Vec } from '../shared/protocol.js';
+import { formatClock, winnerText } from './format.js';
 
 /** A player as drawn this frame. */
 export interface DrawnPlayer {
@@ -37,6 +38,7 @@ const COLORS = {
 	wall: '#a1a1a1',
 	text: '#ffffff',
 	coin: '#FFD700',
+	overlay: 'rgba(0, 0, 0, 0.75)',
 } as const;
 
 function drawSmileyFace(ctx: CanvasRenderingContext2D, pos: Vec, color: string): void {
@@ -61,6 +63,30 @@ function drawSmileyFace(ctx: CanvasRenderingContext2D, pos: Vec, color: string):
 	ctx.stroke();
 }
 
+function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
+	drawSmileyFace(ctx, player, player.color);
+	if (player.self) {
+		ctx.strokeStyle = COLORS.text;
+		ctx.lineWidth = 2;
+		ctx.beginPath();
+		ctx.arc(player.x, player.y, PLAYER_RADIUS + 2, 0, Math.PI * 2);
+		ctx.stroke();
+	}
+	ctx.font = '12px sans-serif';
+	ctx.textAlign = 'center';
+	ctx.fillStyle = COLORS.text;
+	ctx.fillText(player.name, player.x, player.y - PLAYER_RADIUS - 6);
+}
+
+function roundStatus(view: FrameView): string {
+	const { round } = view;
+	if (!round || round.phase === 'waiting' || round.endsAt === null) {
+		return 'Waiting for players';
+	}
+	const left = formatClock(round.endsAt - view.serverNow);
+	return round.phase === 'playing' ? `Time ${left}` : `Next round ${left}`;
+}
+
 function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	const padding = 10;
 	const baseline = 32;
@@ -68,15 +94,44 @@ function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillStyle = COLORS.text;
 
 	ctx.textAlign = 'left';
-	ctx.fillText('Controls: WASD', padding, baseline);
+	ctx.fillText(roundStatus(view), padding, baseline);
 	ctx.textAlign = 'center';
 	ctx.fillText('Coin Race', CANVAS.width / 2, baseline);
 	ctx.textAlign = 'right';
 	const { rank, total } = view.rank;
-	ctx.fillText(`Score: ${view.score}  Rank: ${rank}/${total}`, CANVAS.width - padding, baseline);
+	const status = view.selfId ? `Score: ${view.score}  Rank: ${rank}/${total}` : 'Spectating';
+	ctx.fillText(status, CANVAS.width - padding, baseline);
 }
 
-/** Draw the header, arena, coin and players; the local player is drawn last, on top. */
+function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
+	const round = view.round!;
+	const centerX = ARENA.x + ARENA.width / 2;
+	let y = ARENA.y + 80;
+
+	ctx.fillStyle = COLORS.overlay;
+	ctx.fillRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
+	ctx.textAlign = 'center';
+	ctx.fillStyle = COLORS.text;
+	ctx.font = '28px monospace';
+	ctx.fillText('Round over', centerX, y);
+
+	const names = view.scoreboard.filter((r) => round.winners.includes(r.id)).map((r) => r.name);
+	ctx.font = '20px monospace';
+	ctx.fillStyle = COLORS.coin;
+	ctx.fillText(winnerText(names), centerX, (y += 50));
+
+	ctx.font = '16px monospace';
+	view.scoreboard.slice(0, 5).forEach((row, i) => {
+		ctx.fillStyle = row.color;
+		ctx.fillText(`${i + 1}. ${row.name}  ${row.score}`, centerX, (y += i === 0 ? 50 : 28));
+	});
+
+	const seconds = Math.max(0, Math.ceil(((round.endsAt ?? 0) - view.serverNow) / 1000));
+	ctx.fillStyle = COLORS.text;
+	ctx.fillText(`Next round in ${seconds}`, centerX, ARENA.y + ARENA.height - 40);
+}
+
+/** Draw the header, arena, coin, players and results; the local player is drawn on top. */
 export function drawFrame(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillStyle = COLORS.background;
 	ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
@@ -96,6 +151,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, view: FrameView): void 
 
 	const ordered = [...view.players].sort((a, b) => Number(a.self) - Number(b.self));
 	for (const player of ordered) {
-		drawSmileyFace(ctx, player, player.color);
+		drawPlayer(ctx, player);
+	}
+
+	if (view.round?.phase === 'results') {
+		drawResults(ctx, view);
 	}
 }

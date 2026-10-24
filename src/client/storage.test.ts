@@ -1,0 +1,53 @@
+import { expect, test } from 'vitest';
+import { PALETTE } from '../shared/constants.js';
+import { loadProfile, saveProfile } from './storage.js';
+
+function memoryStorage(): Storage {
+	const data = new Map<string, string>();
+	return {
+		get length() {
+			return data.size;
+		},
+		clear: () => data.clear(),
+		getItem: (k) => data.get(k) ?? null,
+		key: (i) => [...data.keys()][i] ?? null,
+		removeItem: (k) => void data.delete(k),
+		setItem: (k, v) => void data.set(k, v),
+	};
+}
+
+function throwingStorage(): Storage {
+	const fail = () => {
+		throw new Error('blocked');
+	};
+	return { length: 0, clear: fail, getItem: fail, key: fail, removeItem: fail, setItem: fail };
+}
+
+test('profile round-trips', () => {
+	const storage = memoryStorage();
+	saveProfile(storage, { name: 'Ann', color: PALETTE[2]! });
+	expect(loadProfile(storage)).toEqual({ name: 'Ann', color: PALETTE[2] });
+});
+
+test('missing storage is harmless', () => {
+	expect(loadProfile(null)).toBeNull();
+	expect(() => saveProfile(null, { name: 'Ann', color: PALETTE[0]! })).not.toThrow();
+});
+
+test('throwing storage is harmless', () => {
+	const storage = throwingStorage();
+	expect(loadProfile(storage)).toBeNull();
+	expect(() => saveProfile(storage, { name: 'Ann', color: PALETTE[0]! })).not.toThrow();
+});
+
+test('colour outside the palette is ignored', () => {
+	const storage = memoryStorage();
+	storage.setItem('coin-race-profile', JSON.stringify({ name: 'Ann', color: '#000000' }));
+	expect(loadProfile(storage)).toBeNull();
+});
+
+test('bad JSON is ignored', () => {
+	const storage = memoryStorage();
+	storage.setItem('coin-race-profile', '{nope');
+	expect(loadProfile(storage)).toBeNull();
+});

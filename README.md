@@ -1,7 +1,8 @@
 # Coin Race
 
-A small real-time multiplayer browser game. Every player is a smiley face in a walled arena;
-touch the gold coin to score a point, then race everyone to the next one.
+A small real-time multiplayer browser game. Pick a name and a colour, then race everyone in a
+walled arena to the gold coin. Rounds last 60 seconds; the top scorer wins, and a new round
+starts 8 seconds later.
 
 #### [Deployed project link](https://freecodecamp-project-secure-real-time.onrender.com)
 
@@ -23,6 +24,17 @@ npm start          # serves the built game on $PORT (default 3000)
 
 Open the game in two tabs to play against yourself.
 
+## Features
+
+- **Join panel** with a name (1-12 characters) and one of 12 colours. Each colour can be used
+  by one player, so a game holds up to 12 players. Your last name and colour are remembered.
+  Until you join you watch the game as a spectator.
+- **Rounds** of 60 seconds, then a results screen with the winner (or a tie) for 8 seconds.
+  Scores reset each round.
+- **Scoreboard** beside the game, sorted by score, with your row highlighted.
+- **Reconnects take your player back.** A successful join returns a secret token; if your
+  connection drops, the client rejoins with it and keeps your colour, position and score.
+
 ## How the netcode works
 
 | Step                                                               | Where                                                          |
@@ -34,6 +46,8 @@ Open the game in two tabs to play against yourself.
 | Client-side prediction and reconciliation                          | `src/client/prediction.ts`                                     |
 | Snapshot interpolation of other players                            | `src/client/interpolation.ts`                                  |
 | Fixed 30 Hz client ticks, sending input, reconnects                | `src/client/session.ts`, `src/client/fixed-step.ts`            |
+| Joining, rounds and rejoin tokens                                  | `src/server/world.ts`                                          |
+| Join panel, scoreboard, saved profile                              | `src/client/ui.ts`, `src/client/storage.ts`                    |
 | Drawing                                                            | `src/client/render.ts`, wired together in `src/client/main.ts` |
 
 1. **Input.** Each client tick (30 per second) while a key is held, the client sends its key

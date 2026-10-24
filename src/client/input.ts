@@ -13,6 +13,12 @@ const KEY_MAP: Record<string, Direction> = {
 	arrowright: 'right',
 };
 
+/** True for text inputs, so typing a name does not move the player. */
+export function isTextField(target: unknown): boolean {
+	const tag = (target as { tagName?: unknown } | null)?.tagName;
+	return tag === 'INPUT' || tag === 'TEXTAREA';
+}
+
 /** Tracks held direction keys (WASD and arrows); everything is released on blur. */
 export class Keyboard {
 	private readonly held = new Set<string>();
@@ -33,7 +39,7 @@ export class Keyboard {
 
 	private onKey(event: KeyboardEvent, down: boolean): void {
 		const k = event.key.toLowerCase();
-		if (!(k in KEY_MAP)) {
+		if (!(k in KEY_MAP) || (down && isTextField(event.target))) {
 			return;
 		}
 		if (k.startsWith('arrow')) {
