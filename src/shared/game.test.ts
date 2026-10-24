@@ -126,6 +126,11 @@ describe('normalizeName', () => {
 		['\u0007bob', null],
 		['\u{1F600}'.repeat(12), '\u{1F600}'.repeat(12)],
 		['\u{1F600}'.repeat(13), null],
+		['\u200B', null],
+		['\u200D', null],
+		['\u202Eabc', null],
+		['a\u2028b', null],
+		['\u{1F468}\u200D\u{1F469}\u200D\u{1F467}', '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}'],
 	])('%j -> %j', (raw, expected) => {
 		expect(normalizeName(raw)).toBe(expected);
 	});

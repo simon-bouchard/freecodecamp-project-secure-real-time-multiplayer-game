@@ -9,10 +9,12 @@ export class JoinPanel {
 	private readonly swatches = new Map<string, HTMLButtonElement>();
 	private selected: string | null = null;
 	private takenKey = '';
+	private full = false;
+	private busy = false;
 
 	constructor(
 		private readonly form: HTMLFormElement,
-		onSubmit: (name: string, color: string) => void,
+		onSubmit: (name: string, color: string) => Promise<void>,
 	) {
 		this.input = form.querySelector('input')!;
 		this.error = form.querySelector('.join-error')!;
@@ -37,11 +39,15 @@ export class JoinPanel {
 
 		form.addEventListener('submit', (event) => {
 			event.preventDefault();
+			if (this.busy) {
+				return;
+			}
 			if (!this.selected) {
 				this.error.textContent = 'Pick a colour';
 				return;
 			}
-			onSubmit(this.input.value, this.selected);
+			this.setBusy(true);
+			void onSubmit(this.input.value, this.selected).finally(() => this.setBusy(false));
 		});
 	}
 
@@ -83,11 +89,20 @@ export class JoinPanel {
 		if (this.selected && taken.has(this.selected)) {
 			this.select(null);
 		}
-		const full = taken.size >= PALETTE.length;
-		this.submit.disabled = full;
-		if (full) {
+		this.full = taken.size >= PALETTE.length;
+		this.updateSubmit();
+		if (this.full) {
 			this.error.textContent = 'Game is full';
 		}
+	}
+
+	private setBusy(busy: boolean): void {
+		this.busy = busy;
+		this.updateSubmit();
+	}
+
+	private updateSubmit(): void {
+		this.submit.disabled = this.full || this.busy;
 	}
 
 	private select(color: string | null): void {

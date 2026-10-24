@@ -59,7 +59,8 @@ export interface JoinRequest {
 	token?: string;
 }
 
-export type JoinFailure = 'invalid' | 'color-taken' | 'full';
+/** Why a join failed; `timeout` is produced by the client when the server never answers. */
+export type JoinFailure = 'invalid' | 'color-taken' | 'full' | 'timeout';
 
 export type JoinResult = { ok: true; token: string } | { ok: false; reason: JoinFailure };
 

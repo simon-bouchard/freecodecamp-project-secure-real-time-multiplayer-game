@@ -82,11 +82,15 @@ export function isValidInputMessage(value: unknown): value is InputMessage {
 	return (['up', 'down', 'left', 'right'] as const).every((k) => typeof keys[k] === 'boolean');
 }
 
-/** Trimmed name if it is 1-12 code points with no control characters, else null. */
+/** Control, line-break and invisible format characters; the emoji joiner (U+200D) is allowed. */
+const FORBIDDEN_NAME_CHARS = /[\p{Cc}\p{Zl}\p{Zp}]|(?!\u200D)\p{Cf}/u;
+const VISIBLE_CHAR = /[^\p{Cf}\p{Z}\p{M}]/u;
+
+/** Trimmed name if it is 1-12 code points, visible and free of control characters, else null. */
 export function normalizeName(raw: string): string | null {
 	const name = raw.trim();
 	const length = [...name].length;
-	if (length === 0 || length > NAME_MAX_LENGTH || /\p{Cc}/u.test(name)) {
+	if (length > NAME_MAX_LENGTH || FORBIDDEN_NAME_CHARS.test(name) || !VISIBLE_CHAR.test(name)) {
 		return null;
 	}
 	return name;

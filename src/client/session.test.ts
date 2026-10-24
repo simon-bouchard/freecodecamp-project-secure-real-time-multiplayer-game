@@ -1,3 +1,6 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { Server } from 'socket.io';
 import { io } from 'socket.io-client';
 import { afterEach, expect, test } from 'vitest';
 import { PALETTE } from '../shared/constants.js';
@@ -148,4 +151,35 @@ test('view lists players with names and colours', async () => {
 	expect(view.scoreboard[0]).toMatchObject({ name: 'Ann', self: true, score: 0 });
 	expect(view.round?.phase).toBe('playing');
 	expect(view.selfId).toBe(socket.id);
+});
+
+test('double join only joins once', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world });
+	const socket = newSocket();
+	const session = new GameSession(socket, () => NO_INPUT);
+	await connected(socket);
+	const [first, second] = await Promise.all([
+		session.join('Ann', PALETTE[0]!),
+		session.join('Ann', PALETTE[0]!),
+	]);
+	expect(first.ok).toBe(true);
+	expect(second).toEqual(first);
+	expect(session.joined).toBe(true);
+	await expect(session.join('Ann', PALETTE[0]!)).resolves.toEqual(first);
+});
+
+test('join gives up when the server never answers', async () => {
+	const http = createServer();
+	const silent = new Server(http);
+	await new Promise<void>((resolve) => http.listen(0, resolve));
+	const port = (http.address() as AddressInfo).port;
+	const socket: GameSocket = io(`http://localhost:${port}`, { transports: ['websocket'] });
+	sockets.push(socket);
+	await waitFor(() => socket.connected);
+	const session = new GameSession(socket, () => NO_INPUT, undefined, 100);
+	expect(await session.join('Ann', PALETTE[0]!)).toEqual({ ok: false, reason: 'timeout' });
+	expect(session.joined).toBe(false);
+	socket.disconnect();
+	await silent.close();
 });

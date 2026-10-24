@@ -10,6 +10,7 @@ const JOIN_MESSAGES: Record<JoinFailure, string> = {
 	'color-taken': 'That colour was just taken',
 	full: 'Game is full',
 	invalid: 'Pick a name (1-12 characters)',
+	timeout: "Couldn't reach the server, try again",
 };
 
 const canvas = document.getElementById('game-window') as HTMLCanvasElement;

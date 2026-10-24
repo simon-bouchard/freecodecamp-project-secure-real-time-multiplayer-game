@@ -5,6 +5,7 @@ import type {
 	ClientToServerEvents,
 	InputState,
 	JoinFailure,
+	JoinRequest,
 	JoinResult,
 	ServerToClientEvents,
 	Snapshot,
@@ -35,11 +36,13 @@ export class GameSession {
 	private lastFrame: number | null = null;
 	private profile: Profile | null = null;
 	private isJoined = false;
+	private pendingJoin: Promise<JoinResult> | null = null;
 
 	constructor(
 		private readonly socket: GameSocket,
 		private readonly readInput: () => InputState,
 		private readonly onRejoinFailed?: (reason: JoinFailure) => void,
+		private readonly joinTimeoutMs = 5000,
 	) {
 		socket.on('connect', () => {
 			this.reset();
@@ -56,11 +59,29 @@ export class GameSession {
 		return this.isJoined;
 	}
 
-	/** Join the game; on success the profile is kept so reconnects can take the player back. */
-	async join(name: string, color: string): Promise<JoinResult> {
-		const res = await this.socket.emitWithAck('join', { name, color });
+	/**
+	 * Join the game; repeated calls while joining or joined return the same result. On success
+	 * the profile is kept so reconnects can take the player back.
+	 */
+	join(name: string, color: string): Promise<JoinResult> {
+		if (this.isJoined && this.profile) {
+			return Promise.resolve({ ok: true, token: this.profile.token });
+		}
+		this.pendingJoin ??= this.sendJoin({ name, color }).finally(() => {
+			this.pendingJoin = null;
+		});
+		return this.pendingJoin;
+	}
+
+	private async sendJoin(req: JoinRequest): Promise<JoinResult> {
+		let res: JoinResult;
+		try {
+			res = await this.socket.timeout(this.joinTimeoutMs).emitWithAck('join', req);
+		} catch {
+			return { ok: false, reason: 'timeout' };
+		}
 		if (res.ok) {
-			this.profile = { name, color, token: res.token };
+			this.profile = { name: req.name, color: req.color, token: res.token };
 			this.isJoined = true;
 		}
 		return res;
@@ -139,12 +160,9 @@ export class GameSession {
 			return;
 		}
 		const { name, color, token } = this.profile;
-		const res = await this.socket.emitWithAck('join', { name, color, token });
-		if (res.ok) {
-			this.profile.token = res.token;
-			this.isJoined = true;
-		} else {
-			this.profile = null;
+		this.profile = null;
+		const res = await this.sendJoin({ name, color, token });
+		if (!res.ok) {
 			this.onRejoinFailed?.(res.reason);
 		}
 	}
