@@ -1,5 +1,5 @@
 import type { Vec } from '../../shared/protocol.js';
-import type { DrawnPlayer, FrameView } from '../render.js';
+import type { DrawnItem, DrawnPlayer, FrameView } from '../render.js';
 import type { SoundSet } from '../sound/board.js';
 import type { ThemeId } from './registry.js';
 
@@ -25,7 +25,7 @@ export interface Theme {
 	/** The regular 1-point pickup. */
 	drawPickup(ctx: CanvasRenderingContext2D, pos: Vec): void;
 	drawBigPickup(ctx: CanvasRenderingContext2D, big: NonNullable<FrameView['bigCoin']>): void;
-	drawItem(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['item']>): void;
+	drawItem(ctx: CanvasRenderingContext2D, item: DrawnItem): void;
 	drawPlayer(
 		ctx: CanvasRenderingContext2D,
 		player: DrawnPlayer,

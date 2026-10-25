@@ -14,6 +14,7 @@ import {
 	MAGNET_PULL_SPEED,
 	MAGNET_RANGE,
 	MAX_INPUT_CREDITS,
+	MAX_BOARD_ITEMS,
 	MAX_PLAYERS,
 	MAX_QUEUED_INPUTS,
 	PALETTE,
@@ -94,7 +95,7 @@ export class World {
 	private bigCoin: TimedPickup | null = null;
 	private nextBigCoinTimer = 0;
 	private bigCoinIds = 0;
-	private item: BoardItem | null = null;
+	private items: BoardItem[] = [];
 	private nextItemTimer = 0;
 	private itemIds = 0;
 	/** Boost kinds still to deal before reshuffling, so all four appear before any repeat. */
@@ -257,13 +258,13 @@ export class World {
 				y: this.bigCoin.y,
 				expiresAt: time + this.bigCoin.ticksLeft * TICK_MS,
 			},
-			item: this.item && {
-				id: this.item.id,
-				kind: this.item.kind,
-				x: this.item.x,
-				y: this.item.y,
-				expiresAt: time + this.item.ticksLeft * TICK_MS,
-			},
+			items: this.items.map((item) => ({
+				id: item.id,
+				kind: item.kind,
+				x: item.x,
+				y: item.y,
+				expiresAt: time + item.ticksLeft * TICK_MS,
+			})),
 			round: {
 				phase: this.roundPhase,
 				endsAt: this.roundPhase === 'waiting' ? null : time + this.ticksLeft * TICK_MS,
@@ -297,9 +298,14 @@ export class World {
 		this.bigCoin = pos && { id: ++this.bigCoinIds, ...pos, ticksLeft: BIG_COIN_LIFETIME_TICKS };
 	}
 
-	/** Test hook: place a fresh boost of `kind`, or remove it with null. */
-	setItem(kind: ItemKind, pos: Vec | null): void {
-		this.item = pos && { id: ++this.itemIds, kind, ...pos, ticksLeft: ITEM_LIFETIME_TICKS };
+	/** Place a fresh boost of `kind`; also a test hook. */
+	addItem(kind: ItemKind, pos: Vec): void {
+		this.items.push({ id: ++this.itemIds, kind, ...pos, ticksLeft: ITEM_LIFETIME_TICKS });
+	}
+
+	/** Test hook: take a boost off the board. */
+	removeItem(id: number): void {
+		this.items = this.items.filter((item) => item.id !== id);
 	}
 
 	/** Test hook: give a player an effect for `ticks` ticks. */
@@ -389,37 +395,43 @@ export class World {
 	}
 
 	private updateItem(): void {
-		if (this.item) {
-			if (--this.item.ticksLeft <= 0) {
-				this.item = null;
-				this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
+		this.items = this.items.filter((item) => --item.ticksLeft > 0);
+		if (--this.nextItemTimer <= 0) {
+			this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
+			if (this.items.length < MAX_BOARD_ITEMS) {
+				this.addItem(this.nextItemKind(), pickSpawn(ITEM_RADIUS, this.obstacles(), this.rng));
 			}
-		} else if (--this.nextItemTimer <= 0) {
-			this.setItem(this.nextItemKind(), pickSpawn(ITEM_RADIUS, this.obstacles(), this.rng));
 		}
 	}
 
-	/** Deal the next boost kind from a shuffled bag of all four, refilling it when empty. */
+	/**
+	 * Deal the next boost kind from a shuffled bag of all four, skipping kinds already on the
+	 * board. The bag is refilled once it holds nothing dealable.
+	 */
 	private nextItemKind(): ItemKind {
-		if (this.itemBag.length === 0) {
+		const onBoard = new Set(this.items.map((item) => item.kind));
+		if (this.itemBag.every((kind) => onBoard.has(kind))) {
 			this.itemBag = [...ITEM_KINDS];
 			for (let i = this.itemBag.length - 1; i > 0; i--) {
 				const j = Math.floor(this.rng() * (i + 1));
 				[this.itemBag[i], this.itemBag[j]] = [this.itemBag[j]!, this.itemBag[i]!];
 			}
 		}
-		return this.itemBag.pop()!;
+		let index = this.itemBag.length - 1;
+		while (onBoard.has(this.itemBag[index]!)) {
+			index--;
+		}
+		return this.itemBag.splice(index, 1)[0]!;
 	}
 
-	/** First player touching the boost gets it; `slow` goes to everyone else instead. */
+	/** Each boost goes to the first player touching it; `slow` goes to everyone else instead. */
 	private collectItem(): void {
-		const item = this.item;
-		if (!item) {
-			return;
-		}
-		for (const entry of this.players.values()) {
-			if (!circlesOverlap(entry.state, PLAYER_RADIUS, item, ITEM_RADIUS)) {
-				continue;
+		this.items = this.items.filter((item) => {
+			const entry = [...this.players.values()].find((e) =>
+				circlesOverlap(e.state, PLAYER_RADIUS, item, ITEM_RADIUS),
+			);
+			if (!entry) {
+				return true;
 			}
 			if (item.kind === 'slow') {
 				for (const other of this.players.values()) {
@@ -431,10 +443,8 @@ export class World {
 				entry.effects.set(item.kind, EFFECT_TICKS[item.kind]);
 			}
 			this.events.push({ kind: 'item', item: item.kind, playerId: entry.state.id });
-			this.item = null;
-			this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
-			return;
-		}
+			return false;
+		});
 	}
 
 	private coinValue(entry: PlayerEntry, base: number): number {
@@ -498,8 +508,8 @@ export class World {
 		if (this.bigCoin) {
 			circles.push({ x: this.bigCoin.x, y: this.bigCoin.y, r: BIG_COIN_RADIUS });
 		}
-		if (this.item) {
-			circles.push({ x: this.item.x, y: this.item.y, r: ITEM_RADIUS });
+		for (const item of this.items) {
+			circles.push({ x: item.x, y: item.y, r: ITEM_RADIUS });
 		}
 		return circles;
 	}
@@ -507,7 +517,7 @@ export class World {
 	/** Remove round-only pickups (big coin, boosts) and effects. */
 	private clearExtras(): void {
 		this.bigCoin = null;
-		this.item = null;
+		this.items = [];
 		for (const { effects } of this.players.values()) {
 			effects.clear();
 		}

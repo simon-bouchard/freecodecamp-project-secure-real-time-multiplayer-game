@@ -8,7 +8,7 @@ import {
 } from '../../../shared/constants.js';
 import type { Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
-import type { DrawnPlayer, FrameView } from '../../render.js';
+import type { DrawnItem, DrawnPlayer, FrameView } from '../../render.js';
 import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
 import {
@@ -176,7 +176,7 @@ function drawRamen(ctx: CanvasRenderingContext2D, big: NonNullable<FrameView['bi
 	drawSprite(ctx, ramenSprite(), big.x, big.y - 5 * scale, scale);
 }
 
-function drawTag(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['item']>): void {
+function drawTag(ctx: CanvasRenderingContext2D, item: DrawnItem): void {
 	if (blinkVisible(item.remainingMs)) {
 		drawSprite(ctx, tagSprite(item.kind), item.x, item.y, ITEM_RADIUS / 10);
 	}

@@ -16,7 +16,7 @@ import type {
 import { FixedStep } from './fixed-step.js';
 import { SnapshotBuffer } from './interpolation.js';
 import { Predictor } from './prediction.js';
-import type { DrawnPlayer, FrameView } from './render.js';
+import type { DrawnItem, DrawnPlayer, FrameView } from './render.js';
 
 export type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -138,7 +138,7 @@ export class GameSession {
 		const pickups = this.buffer.sampleEntities(renderTime, (s) => [
 			{ key: `coin:${s.coin.id}`, x: s.coin.x, y: s.coin.y },
 			...(s.bigCoin ? [{ key: `big:${s.bigCoin.id}`, x: s.bigCoin.x, y: s.bigCoin.y }] : []),
-			...(s.item ? [{ key: `item:${s.item.id}`, x: s.item.x, y: s.item.y }] : []),
+			...s.items.map((item) => ({ key: `item:${item.id}`, x: item.x, y: item.y })),
 		]);
 		const selfPos =
 			selfId && this.predictor.position
@@ -167,7 +167,7 @@ export class GameSession {
 			bigCoin: latest?.bigCoin
 				? this.timedPickup(pickups, `big:${latest.bigCoin.id}`, latest.bigCoin, serverNow)
 				: null,
-			item: latest?.item ? this.boardItem(pickups, latest.item, serverNow) : null,
+			items: (latest?.items ?? []).map((item) => this.boardItem(pickups, item, serverNow)),
 			selfId,
 			score: players.find((p) => p.id === selfId)?.score ?? 0,
 			rank: calculateRank(players, selfId ?? ''),
@@ -203,11 +203,7 @@ export class GameSession {
 		return { x: pos.x, y: pos.y, remainingMs: Math.max(0, latest.expiresAt - serverNow) };
 	}
 
-	private boardItem(
-		positions: Map<string, Vec>,
-		item: ItemState,
-		serverNow: number,
-	): FrameView['item'] {
+	private boardItem(positions: Map<string, Vec>, item: ItemState, serverNow: number): DrawnItem {
 		return { ...this.timedPickup(positions, `item:${item.id}`, item, serverNow), kind: item.kind };
 	}
 

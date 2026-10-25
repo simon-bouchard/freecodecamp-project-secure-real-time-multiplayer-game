@@ -200,18 +200,18 @@ test('view shows items, the big coin and own effects', async () => {
 	await waitFor(() => session.predictor.position !== null);
 	world.setPlayerPosition(socket.id!, { x: 300, y: 300 });
 	world.setCoinPosition({ x: 600, y: 440 });
-	world.setItem('magnet', { x: 100, y: 400 });
+	world.addItem('magnet', { x: 100, y: 400 });
+	world.addItem('double', { x: 500, y: 400 });
 	world.setBigCoin({ x: 500, y: 150 });
-	await waitFor(
-		() => session.buffer.latest()?.item !== null && session.buffer.latest()?.item !== undefined,
-	);
+	await waitFor(() => (session.buffer.latest()?.items.length ?? 0) === 2);
 	await new Promise((r) => setTimeout(r, 200));
 	let view = session.view(performance.now());
-	expect(view.item?.kind).toBe('magnet');
-	expect(view.item!.remainingMs).toBeGreaterThan(ITEM_LIFETIME_TICKS * TICK_MS - 1000);
+	expect(view.items.map((i) => i.kind)).toEqual(['magnet', 'double']);
+	expect(view.items[1]!.x).toBeCloseTo(500);
+	expect(view.items[0]!.remainingMs).toBeGreaterThan(ITEM_LIFETIME_TICKS * TICK_MS - 1000);
 	expect(view.bigCoin!.remainingMs).toBeGreaterThan(BIG_COIN_LIFETIME_TICKS * TICK_MS - 1000);
 
-	world.setItem('speed', { x: 300, y: 300 });
+	world.addItem('speed', { x: 300, y: 300 });
 	await waitFor(() => (session.buffer.latest()?.players[0]?.effects.length ?? 0) > 0);
 	view = session.view(performance.now());
 	const self = view.players.find((p) => p.self)!;
@@ -226,7 +226,7 @@ test('a freshly respawned coin shows immediately, before interpolation catches u
 		tick: 0,
 		players: [],
 		bigCoin: null,
-		item: null,
+		items: [],
 		round: { phase: 'playing' as const, endsAt: null, winners: [] },
 	};
 	const now = performance.now();
@@ -252,7 +252,7 @@ test('the session keeps the latest leaderboard and exposes highlights during res
 		players: [],
 		coin: { id: 1, x: 100, y: 100 },
 		bigCoin: null,
-		item: null,
+		items: [],
 		round: { phase: 'results', endsAt: now + 8000, winners: [] },
 	});
 	expect(session.view(now).highlights).toEqual(new Map([['p2', 'month']]));

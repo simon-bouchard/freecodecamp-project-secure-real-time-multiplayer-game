@@ -8,7 +8,7 @@ import {
 } from '../../../shared/constants.js';
 import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, winnerText } from '../../format.js';
-import type { DrawnPlayer, FrameView } from '../../render.js';
+import type { DrawnItem, DrawnPlayer, FrameView } from '../../render.js';
 import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
 
@@ -87,7 +87,7 @@ function drawBigCoin(ctx: CanvasRenderingContext2D, big: NonNullable<FrameView['
 	ctx.fill();
 }
 
-function drawItem(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['item']>): void {
+function drawItem(ctx: CanvasRenderingContext2D, item: DrawnItem): void {
 	if (!blinkVisible(item.remainingMs)) {
 		return;
 	}

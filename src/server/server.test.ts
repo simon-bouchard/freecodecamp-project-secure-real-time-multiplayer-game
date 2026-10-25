@@ -195,8 +195,8 @@ test('picking up a boost shows up in snapshots', async () => {
 	const a = await connect(0);
 	await nextSnapshot(a, (s) => s.players.length === 1);
 	world.setPlayerPosition(a.id!, { x: 300, y: 300 });
-	world.setItem('speed', { x: 300, y: 300 });
-	const snap = await nextSnapshot(a, (s) => s.item === null);
+	world.addItem('speed', { x: 300, y: 300 });
+	const snap = await nextSnapshot(a, (s) => s.items.length === 0);
 	const self = snap.players[0]!;
 	expect(self.effects.map((e) => e.kind)).toEqual(['speed']);
 	expect(self.effects[0]!.endsAt).toBeGreaterThan(snap.time);

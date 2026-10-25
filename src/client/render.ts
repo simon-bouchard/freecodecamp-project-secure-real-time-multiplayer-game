@@ -21,12 +21,20 @@ export interface ScoreRow {
 	self: boolean;
 }
 
+/** A boost on the board, with how long it has left. */
+export interface DrawnItem {
+	kind: ItemKind;
+	x: number;
+	y: number;
+	remainingMs: number;
+}
+
 /** Everything needed to draw one frame. */
 export interface FrameView {
 	players: DrawnPlayer[];
 	coin: Vec | null;
 	bigCoin: { x: number; y: number; remainingMs: number } | null;
-	item: { kind: ItemKind; x: number; y: number; remainingMs: number } | null;
+	items: DrawnItem[];
 	selfId: string | null;
 	score: number;
 	rank: { rank: number; total: number };
@@ -68,8 +76,8 @@ export function drawFrame(
 	if (view.bigCoin) {
 		theme.drawBigPickup(ctx, view.bigCoin);
 	}
-	if (view.item) {
-		theme.drawItem(ctx, view.item);
+	for (const item of view.items) {
+		theme.drawItem(ctx, item);
 	}
 	const ordered = [...view.players].sort((a, b) => Number(a.self) - Number(b.self));
 	for (const player of ordered) {

@@ -81,7 +81,7 @@ export interface Snapshot {
 	players: PlayerState[];
 	coin: CoinState;
 	bigCoin: BigCoinState | null;
-	item: ItemState | null;
+	items: ItemState[];
 	round: RoundState;
 	events: GameEvent[];
 }

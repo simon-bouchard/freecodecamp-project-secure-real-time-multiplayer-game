@@ -29,7 +29,7 @@ function snap(
 		players: [player('me'), player('other')],
 		coin: { id: 1, x: 0, y: 0 },
 		bigCoin: null,
-		item: null,
+		items: [],
 		round: { phase, endsAt, winners },
 		events,
 	};

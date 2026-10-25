@@ -8,7 +8,7 @@ import {
 } from '../../../shared/constants.js';
 import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
-import type { DrawnPlayer, FrameView } from '../../render.js';
+import type { DrawnItem, DrawnPlayer, FrameView } from '../../render.js';
 import { labelLayout, labelX } from '../layout.js';
 import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import { SmokeTrail } from '../trail.js';
@@ -142,7 +142,7 @@ function drawBigPickup(
 	ctx.stroke();
 }
 
-function drawItem(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['item']>): void {
+function drawItem(ctx: CanvasRenderingContext2D, item: DrawnItem): void {
 	if (blinkVisible(item.remainingMs)) {
 		drawBadge(ctx, item.kind, item.x, item.y, ITEM_RADIUS);
 	}

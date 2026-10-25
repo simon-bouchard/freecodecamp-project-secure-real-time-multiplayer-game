@@ -9,6 +9,7 @@ import {
 	ITEM_DELAY_TICKS,
 	ITEM_KINDS,
 	ITEM_LIFETIME_TICKS,
+	MAX_BOARD_ITEMS,
 	MAX_INPUT_CREDITS,
 	MAX_PLAYERS,
 	PALETTE,
@@ -412,7 +413,7 @@ test('big coin is cleared at round end and when the game empties', () => {
 test('snapshots carry empty effects and no item yet', () => {
 	const snap = bigCoinWorld().snapshot(0);
 	expect(snap.players[0]?.effects).toEqual([]);
-	expect(snap.item).toBeNull();
+	expect(snap.items).toEqual([]);
 });
 
 function boostWorld(): World {
@@ -432,20 +433,20 @@ function moveRight(world: World, id: string, seq: number): number {
 test('boost item spawns on its timer and expires', () => {
 	const world = bigCoinWorld();
 	steps(world, ITEM_DELAY_TICKS[0] - 1);
-	expect(world.snapshot(0).item).toBeNull();
+	expect(world.snapshot(0).items).toEqual([]);
 	world.step();
-	const item = world.snapshot(1000).item;
+	const [item] = world.snapshot(1000).items;
 	expect(item?.kind).toBe(ITEM_KINDS[0]);
 	expect(item!.expiresAt).toBeCloseTo(1000 + ITEM_LIFETIME_TICKS * TICK_MS);
 	steps(world, ITEM_LIFETIME_TICKS);
-	expect(world.snapshot(0).item).toBeNull();
+	expect(world.snapshot(0).items.map((i) => i.id)).not.toContain(item!.id);
 });
 
 test('speed pickup gives the collector a full speed effect', () => {
 	const world = boostWorld();
-	world.setItem('speed', { x: 300, y: 300 });
+	world.addItem('speed', { x: 300, y: 300 });
 	world.step();
-	expect(world.snapshot(0).item).toBeNull();
+	expect(world.snapshot(0).items).toEqual([]);
 	expect(world.effectsOf('a').get('speed')).toBe(EFFECT_TICKS.speed);
 	expect(world.effectsOf('b').size).toBe(0);
 	expect(moveRight(world, 'a', 1)).toBeCloseTo(15);
@@ -462,7 +463,7 @@ test('an effect with 2 ticks left boosts exactly the next 2 inputs', () => {
 
 test('slow pickup slows everyone except the collector', () => {
 	const world = boostWorld();
-	world.setItem('slow', { x: 300, y: 300 });
+	world.addItem('slow', { x: 300, y: 300 });
 	world.step();
 	expect(world.effectsOf('a').size).toBe(0);
 	expect(world.effectsOf('b').get('slow')).toBe(EFFECT_TICKS.slow);
@@ -479,7 +480,7 @@ test('speed and slow stack', () => {
 test('picking up an active boost restarts its timer', () => {
 	const world = boostWorld();
 	world.setEffect('a', 'speed', 10);
-	world.setItem('speed', { x: 300, y: 300 });
+	world.addItem('speed', { x: 300, y: 300 });
 	world.step();
 	expect(world.effectsOf('a').get('speed')).toBe(EFFECT_TICKS.speed);
 });
@@ -534,17 +535,17 @@ test('with two magnets the coin goes to the nearer player', () => {
 
 test('round end clears items and effects; the next round starts clean', () => {
 	const world = boostWorld();
-	world.setItem('magnet', { x: 100, y: 400 });
+	world.addItem('magnet', { x: 100, y: 400 });
 	world.setEffect('a', 'speed', 1000);
 	world.setEffect('b', 'slow', 1000);
 	steps(world, ROUND_TICKS);
 	expect(world.phase).toBe('results');
-	expect(world.snapshot(0).item).toBeNull();
+	expect(world.snapshot(0).items).toEqual([]);
 	expect(world.effectsOf('a').size).toBe(0);
 	expect(world.effectsOf('b').size).toBe(0);
 	steps(world, RESULTS_TICKS);
 	expect(world.phase).toBe('playing');
-	expect(world.snapshot(0).item).toBeNull();
+	expect(world.snapshot(0).items).toEqual([]);
 });
 
 test('snapshots list effects with their end time', () => {
@@ -593,10 +594,9 @@ test('boosts cycle through all four kinds before repeating', () => {
 	const kinds: string[] = [];
 	for (let t = 0; t < 10_000 && kinds.length < 8; t++) {
 		world.step();
-		const item = world.snapshot(0).item;
-		if (item) {
+		for (const item of world.snapshot(0).items) {
 			kinds.push(item.kind);
-			world.setItem(item.kind, null);
+			world.removeItem(item.id);
 		}
 	}
 	expect(kinds).toHaveLength(8);
@@ -653,7 +653,7 @@ test('snapshot events name who picked up what this tick', () => {
 	world.setBigCoin({ x: 300, y: 300 });
 	world.step();
 	expect(world.snapshot(0).events).toEqual([{ kind: 'bigCoin', playerId: 'a' }]);
-	world.setItem('slow', { x: 300, y: 300 });
+	world.addItem('slow', { x: 300, y: 300 });
 	world.step();
 	expect(world.snapshot(0).events).toEqual([{ kind: 'item', item: 'slow', playerId: 'a' }]);
 });
@@ -665,4 +665,49 @@ test('events only cover the last tick', () => {
 	world.setCoinPosition({ x: 600, y: 440 });
 	world.step();
 	expect(world.snapshot(0).events).toEqual([]);
+});
+
+test('a second boost spawns while the first is still on the board', () => {
+	const world = bigCoinWorld();
+	steps(world, ITEM_DELAY_TICKS[0]);
+	expect(world.snapshot(0).items).toHaveLength(1);
+	steps(world, ITEM_DELAY_TICKS[0]);
+	const items = world.snapshot(0).items;
+	expect(items).toHaveLength(2);
+	expect(items[0]!.kind).not.toBe(items[1]!.kind);
+});
+
+test(`the board holds at most ${MAX_BOARD_ITEMS} boosts`, () => {
+	const world = bigCoinWorld();
+	world.addItem('speed', { x: 100, y: 400 });
+	world.addItem('magnet', { x: 500, y: 100 });
+	steps(world, ITEM_DELAY_TICKS[0]);
+	expect(world.snapshot(0).items.map((i) => i.kind)).toEqual(['speed', 'magnet']);
+});
+
+test('two boosts can be collected in the same tick by different players', () => {
+	const world = boostWorld();
+	world.addItem('speed', { x: 300, y: 300 });
+	world.addItem('double', { x: 300, y: 400 });
+	world.step();
+	expect(world.snapshot(0).items).toEqual([]);
+	expect(world.effectsOf('a').has('speed')).toBe(true);
+	expect(world.effectsOf('b').has('double')).toBe(true);
+	expect(world.snapshot(0).events).toHaveLength(2);
+});
+
+test('a new boost is never the same kind as one already on the board', () => {
+	for (let seed = 0; seed < 20; seed++) {
+		let state = seed + 1;
+		const rng = () => ((state = (state * 16807) % 2147483647) - 1) / 2147483646;
+		const world = new World(rng);
+		world.addPlayer('a');
+		world.setPlayerPosition('a', { x: 30, y: 70 });
+		for (let t = 0; t < 3000; t++) {
+			world.step();
+			const kinds = world.snapshot(0).items.map((i) => i.kind);
+			expect(new Set(kinds).size).toBe(kinds.length);
+			expect(kinds.length).toBeLessThanOrEqual(MAX_BOARD_ITEMS);
+		}
+	}
 });

@@ -14,7 +14,7 @@ function snap(time: number, players: PlayerState[]): Snapshot {
 		players,
 		coin: { id: 1, x: 50, y: 50 },
 		bigCoin: null,
-		item: null,
+		items: [],
 		round: { phase: 'playing', endsAt: null, winners: [] },
 		events: [],
 	};

@@ -83,8 +83,10 @@ export const BIG_COIN_DELAY_TICKS = [20 * TICK_RATE, 30 * TICK_RATE] as const;
 
 export const ITEM_RADIUS = 10;
 export const ITEM_LIFETIME_TICKS = 10 * TICK_RATE;
-/** Inclusive range of ticks between boost items. */
+/** Inclusive range of ticks between boost spawns; the timer runs even while boosts are out. */
 export const ITEM_DELAY_TICKS = [8 * TICK_RATE, 12 * TICK_RATE] as const;
+/** Most boosts on the board at once; a spawn is skipped while it is full. */
+export const MAX_BOARD_ITEMS = 2;
 
 export const ITEM_KINDS = ['speed', 'magnet', 'double', 'slow'] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
