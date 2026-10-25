@@ -1,5 +1,6 @@
 import type { Vec } from '../../shared/protocol.js';
 import type { DrawnPlayer, FrameView } from '../render.js';
+import type { SoundSet } from '../sound/board.js';
 import type { ThemeId } from './registry.js';
 
 /**
@@ -14,6 +15,8 @@ export interface Theme {
 	joinHint: string;
 	/** Join hint shown on touch screens instead of the keyboard one. */
 	joinTouchHint: string;
+	/** Sounds for game moments; a theme without them is silent. */
+	sounds?: SoundSet;
 	/** Called once per frame before drawing, for themes that keep per-frame state. */
 	beginFrame?(view: FrameView, now: number): void;
 	/** Page background, floor and walls. */

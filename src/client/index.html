@@ -7,7 +7,7 @@
 		<title>Coin Race</title>
 		<link rel="icon" href="data:," />
 		<link rel="stylesheet" href="./style.css" />
-		<link rel="icon" type="image/x-icon" href="/public/favicon.png">
+		<link rel="icon" type="image/x-icon" href="/public/favicon.png" />
 	</head>
 	<body>
 		<main class="layout">
@@ -21,10 +21,11 @@
 					<div class="swatches" role="group" aria-label="Colour"></div>
 					<p class="join-error" role="alert"></p>
 					<button type="submit">Join game</button>
-					<label class="theme-picker" for="join-theme"
-						>Theme
-						<select id="join-theme" class="theme-select"></select
-					></label>
+					<div class="theme-picker">
+						<label for="join-theme">Theme</label>
+						<select id="join-theme" class="theme-select"></select>
+						<button type="button" class="sound-toggle" aria-pressed="true">Sound: on</button>
+					</div>
 					<p id="join-hint" class="hint"></p>
 				</form>
 			</div>
@@ -45,10 +46,11 @@
 					<p class="best-runs-rank"></p>
 					<ol class="best-runs-list"></ol>
 				</section>
-				<label class="theme-picker" for="side-theme"
-					>Theme
-					<select id="side-theme" class="theme-select"></select
-				></label>
+				<div class="theme-picker">
+					<label for="side-theme">Theme</label>
+					<select id="side-theme" class="theme-select"></select>
+					<button type="button" class="sound-toggle" aria-pressed="true">Sound: on</button>
+				</div>
 			</aside>
 		</main>
 		<script type="module" src="./main.ts"></script>

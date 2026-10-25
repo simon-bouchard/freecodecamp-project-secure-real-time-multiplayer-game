@@ -22,6 +22,7 @@ import {
 import { PAPER, mulberry32, readableOnPaper } from './geometry.js';
 import { labelLayout, labelX } from '../layout.js';
 import { SmokeTrail } from '../trail.js';
+import { ninjaSounds } from '../../sound/ninja.js';
 
 const COLORS = {
 	page: '#2a1c11',
@@ -344,6 +345,7 @@ export const ninjaTheme: Theme = {
 	joinNameLabel: 'Ninja name',
 	joinHint: 'WASD or arrow keys. Grab the narutomaki!',
 	joinTouchHint: 'Touch where you want to go. Grab the narutomaki!',
+	sounds: ninjaSounds,
 	beginFrame,
 	drawArena,
 	drawHeader,

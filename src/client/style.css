@@ -321,6 +321,7 @@ canvas {
 
 .theme-picker {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 	font-size: 13px;
@@ -334,6 +335,11 @@ canvas {
 
 .theme-select {
 	flex: 1;
+	min-width: 6em;
+}
+
+.theme-select,
+.sound-toggle {
 	padding: 4px 6px;
 	font-size: 14px;
 	border-radius: 4px;
@@ -342,13 +348,20 @@ canvas {
 	color: inherit;
 }
 
-.theme-ninja .join-panel .theme-select {
+.sound-toggle {
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.theme-ninja .join-panel .theme-select,
+.theme-ninja .join-panel .sound-toggle {
 	background: #fffaf0;
 	color: var(--ink);
 	border-color: #5a3a1a;
 }
 
-.theme-ninja .scoreboard .theme-select {
+.theme-ninja .scoreboard .theme-select,
+.theme-ninja .scoreboard .sound-toggle {
 	background: var(--wood-dark);
 	color: var(--cream);
 	border-color: #6b4a30;
@@ -400,7 +413,8 @@ canvas {
 }
 
 .theme-flat .join-panel input,
-.theme-flat .theme-select {
+.theme-flat .theme-select,
+.theme-flat .sound-toggle {
 	background: var(--row);
 	color: var(--text);
 	border: none;

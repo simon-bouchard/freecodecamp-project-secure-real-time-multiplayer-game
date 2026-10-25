@@ -8,13 +8,17 @@ import { Keyboard } from './input.js';
 import { PointerSteering, moveToward, toGameCoords } from './steering.js';
 import { drawFrame } from './render.js';
 import { type GameSocket, GameSession } from './session.js';
+import { SoundBoard, browserAudio } from './sound/board.js';
+import { CueTracker } from './sound/cues.js';
 import {
 	loadBoardPrefs,
 	loadOrCreatePlayerKey,
 	loadProfile,
+	loadSoundOn,
 	loadThemeId,
 	saveBoardPrefs,
 	saveProfile,
+	saveSoundOn,
 	saveThemeId,
 } from './storage.js';
 import { THEMES } from './theme/index.js';
@@ -116,6 +120,36 @@ for (const select of themeSelects) {
 	});
 }
 applyTheme(theme.id);
+
+const sounds = new SoundBoard(loadSoundOn(storage), browserAudio);
+const cues = new CueTracker();
+const soundToggles = [...document.querySelectorAll<HTMLButtonElement>('.sound-toggle')];
+
+/** Show the sound setting on both toggle buttons. */
+function showSoundSetting(): void {
+	for (const button of soundToggles) {
+		button.textContent = sounds.enabled ? 'Sound: on' : 'Sound: off';
+		button.setAttribute('aria-pressed', String(sounds.enabled));
+	}
+}
+
+for (const button of soundToggles) {
+	button.addEventListener('click', () => {
+		sounds.setEnabled(!sounds.enabled);
+		saveSoundOn(storage, sounds.enabled);
+		showSoundSetting();
+		button.blur();
+	});
+}
+showSoundSetting();
+for (const type of ['pointerdown', 'keydown'] as const) {
+	window.addEventListener(type, () => sounds.unlock(), { capture: true });
+}
+
+const selfId = () => (session.joined ? (socket.id ?? null) : null);
+socket.on('snapshot', (snapshot) => sounds.play(cues.snapshot(snapshot, selfId()), theme.sounds));
+socket.on('leaderboard', (view) => sounds.play(cues.leaderboard(view, selfId()), theme.sounds));
+socket.on('disconnect', () => cues.reset());
 
 const saved = loadProfile(storage);
 if (saved) {

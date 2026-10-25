@@ -4,9 +4,11 @@ import {
 	loadBoardPrefs,
 	loadOrCreatePlayerKey,
 	loadProfile,
+	loadSoundOn,
 	loadThemeId,
 	saveBoardPrefs,
 	saveProfile,
+	saveSoundOn,
 	saveThemeId,
 } from './storage.js';
 
@@ -100,4 +102,16 @@ test('board choices default to today/everyone, round-trip, and ignore bad data',
 	expect(loadBoardPrefs(storage)).toEqual({ period: 'today', scope: 'everyone' });
 	expect(loadBoardPrefs(throwingStorage())).toEqual({ period: 'today', scope: 'everyone' });
 	expect(() => saveBoardPrefs(throwingStorage(), { period: 'all', scope: 'mine' })).not.toThrow();
+});
+
+test('sound is on by default, remembers off, and survives broken storage', () => {
+	const storage = memoryStorage();
+	expect(loadSoundOn(storage)).toBe(true);
+	saveSoundOn(storage, false);
+	expect(loadSoundOn(storage)).toBe(false);
+	saveSoundOn(storage, true);
+	expect(loadSoundOn(storage)).toBe(true);
+	expect(loadSoundOn(null)).toBe(true);
+	expect(loadSoundOn(throwingStorage())).toBe(true);
+	expect(() => saveSoundOn(throwingStorage(), false)).not.toThrow();
 });

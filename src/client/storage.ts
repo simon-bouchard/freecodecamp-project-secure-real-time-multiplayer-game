@@ -6,6 +6,7 @@ import { DEFAULT_THEME_ID, type ThemeId, isThemeId } from './theme/registry.js';
 const KEY = 'coin-race-profile';
 const THEME_KEY = 'coin-race-theme';
 const PLAYER_KEY = 'coin-race-player-key';
+const SOUND_KEY = 'coin-race-sound';
 
 export interface SavedProfile {
 	name: string;
@@ -51,6 +52,23 @@ export function loadThemeId(storage: Storage | null): ThemeId {
 export function saveThemeId(storage: Storage | null, id: ThemeId): void {
 	try {
 		storage?.setItem(THEME_KEY, id);
+	} catch {
+		// Same as saveProfile: the choice just won't be remembered.
+	}
+}
+
+/** Whether sound is on; on unless the player turned it off. */
+export function loadSoundOn(storage: Storage | null): boolean {
+	try {
+		return storage?.getItem(SOUND_KEY) !== 'off';
+	} catch {
+		return true;
+	}
+}
+
+export function saveSoundOn(storage: Storage | null, on: boolean): void {
+	try {
+		storage?.setItem(SOUND_KEY, on ? 'on' : 'off');
 	} catch {
 		// Same as saveProfile: the choice just won't be remembered.
 	}
