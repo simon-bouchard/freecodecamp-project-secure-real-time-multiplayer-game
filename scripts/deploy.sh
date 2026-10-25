@@ -47,8 +47,9 @@ npm run build
 
 echo "==> Copy to $DEPLOY_HOST:$DEPLOY_DIR"
 ssh "$DEPLOY_HOST" "mkdir -p '$DEPLOY_DIR'"
-# Keep the server's own owner and group; our SSH user may not be allowed to change them.
-RSYNC=(rsync -az --no-owner --no-group)
+# Copy contents and file times only: the server's folders may belong to another user, whose
+# owner, group, permissions and folder times our SSH user is not allowed to change.
+RSYNC=(rsync -rltz --omit-dir-times)
 "${RSYNC[@]}" --delete dist/ "$DEPLOY_HOST:$DEPLOY_DIR/dist/"
 "${RSYNC[@]}" package.json package-lock.json "$DEPLOY_HOST:$DEPLOY_DIR/"
 
