@@ -20,9 +20,9 @@ const YO_STRINGS = [YO.D4, YO.E4, YO.G4, YO.A4, YO.B4, YO.D5, YO.E5, YO.G5, YO.A
 export const ninjaSounds: SoundSet = {
 	coin: (s, t) => s.woodBlock(t, 1300, 0.5),
 	ramen: (s, t) => {
-		YO_STRINGS.forEach((f, i) => s.koto(f, t + i * 0.035, { gain: 0.4 }));
-		s.koto(YO.D5, t + 0.5, { gain: 0.5 });
-		s.koto(YO.D6, t + 0.5, { gain: 0.4 });
+		YO_STRINGS.forEach((f, i) => s.koto(f, t + i * 0.035, { gain: 0.2 }));
+		s.koto(YO.D5, t + 0.5, { gain: 0.28 });
+		s.koto(YO.D6, t + 0.5, { gain: 0.22 });
 	},
 	speed: (s, t) => s.spinner(t, { gain: 1.6 }),
 	magnet: (s, t) => {
