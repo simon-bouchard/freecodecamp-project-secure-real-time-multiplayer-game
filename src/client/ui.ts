@@ -1,5 +1,8 @@
 import { PALETTE } from '../shared/constants.js';
+import type { LeaderboardView, Period } from '../shared/protocol.js';
+import { formatRunTime, ordinal } from './format.js';
 import type { ScoreRow } from './render.js';
+import type { BoardPrefs } from './storage.js';
 
 /** Keep `current` while free, else a random free colour, or null when all are taken. */
 export function pickDefaultColor(
@@ -161,6 +164,93 @@ export class Scoreboard {
 				score.className = 'score';
 				score.textContent = String(row.score);
 				item.append(dot, name, score);
+				return item;
+			}),
+		);
+	}
+}
+
+/** "Best runs" panel: Period and Showing toggles over the server's leaderboard view. */
+export class BestRunsPanel {
+	private readonly periodButtons: HTMLButtonElement[];
+	private readonly scopeButtons: HTMLButtonElement[];
+	private readonly rankLine: HTMLElement;
+	private readonly list: HTMLElement;
+	private renderedKey = '';
+
+	constructor(
+		root: HTMLElement,
+		private prefs: BoardPrefs,
+		onChange: (prefs: BoardPrefs) => void,
+	) {
+		this.periodButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-period]')];
+		this.scopeButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-scope]')];
+		this.rankLine = root.querySelector('.best-runs-rank')!;
+		this.list = root.querySelector('.best-runs-list')!;
+		for (const button of this.periodButtons) {
+			button.addEventListener('click', () => {
+				this.prefs = { ...this.prefs, period: button.dataset.period as Period };
+				onChange(this.prefs);
+			});
+		}
+		for (const button of this.scopeButtons) {
+			button.addEventListener('click', () => {
+				this.prefs = { ...this.prefs, scope: button.dataset.scope as BoardPrefs['scope'] };
+				onChange(this.prefs);
+			});
+		}
+	}
+
+	/** Show `view` for the current choices; only touches the DOM when something changed. */
+	update(view: LeaderboardView | null, now: number): void {
+		const key = JSON.stringify([this.prefs, view?.boards ?? null, new Date(now).toDateString()]);
+		if (key === this.renderedKey) {
+			return;
+		}
+		this.renderedKey = key;
+
+		for (const b of this.periodButtons) {
+			b.setAttribute('aria-pressed', String(b.dataset.period === this.prefs.period));
+		}
+		for (const b of this.scopeButtons) {
+			b.setAttribute('aria-pressed', String(b.dataset.scope === this.prefs.scope));
+		}
+
+		const board = view?.boards[this.prefs.period];
+		const mine = this.prefs.scope === 'mine';
+		this.rankLine.hidden = !mine || !board;
+		if (mine && board) {
+			this.rankLine.textContent = board.myRank
+				? `Your rank: ${ordinal(board.myRank)}`
+				: 'Not ranked';
+		}
+
+		const rows: [string, string, string, boolean][] = !board
+			? []
+			: mine
+				? board.mine.map((r) => [String(r.score), r.name, formatRunTime(r.finishedAt, now), false])
+				: board.everyone.map((r, i) => [`${i + 1}.`, r.name, String(r.score), r.self]);
+		if (rows.length === 0) {
+			const empty = document.createElement('li');
+			empty.className = 'empty';
+			empty.textContent = view ? 'No runs yet' : 'Loading…';
+			this.list.replaceChildren(empty);
+			return;
+		}
+		this.list.replaceChildren(
+			...rows.map(([lead, name, trail, self]) => {
+				const item = document.createElement('li');
+				item.classList.toggle('self', self);
+				for (const [cls, text] of [
+					['lead', lead],
+					['name', name],
+					['trail', trail],
+				] as const) {
+					const span = document.createElement('span');
+					span.className = cls;
+					span.textContent = text;
+					item.append(span);
+				}
 				return item;
 			}),
 		);

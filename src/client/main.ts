@@ -5,15 +5,17 @@ import { Keyboard } from './input.js';
 import { drawFrame } from './render.js';
 import { type GameSocket, GameSession } from './session.js';
 import {
+	loadBoardPrefs,
 	loadOrCreatePlayerKey,
 	loadProfile,
 	loadThemeId,
+	saveBoardPrefs,
 	saveProfile,
 	saveThemeId,
 } from './storage.js';
 import { THEMES } from './theme/index.js';
 import { THEME_OPTIONS, type ThemeId, isThemeId } from './theme/registry.js';
-import { JoinPanel, Scoreboard } from './ui.js';
+import { BestRunsPanel, JoinPanel, Scoreboard } from './ui.js';
 
 const JOIN_MESSAGES: Record<JoinFailure, string> = {
 	'color-taken': 'That colour was just taken',
@@ -38,6 +40,11 @@ const storage = (() => {
 const socket: GameSocket = io({ auth: { playerKey: loadOrCreatePlayerKey(storage) } });
 const keyboard = new Keyboard(window);
 const scoreboard = new Scoreboard(document.getElementById('scoreboard')!);
+const bestRuns = new BestRunsPanel(
+	document.querySelector<HTMLElement>('.best-runs')!,
+	loadBoardPrefs(storage),
+	(prefs) => saveBoardPrefs(storage, prefs),
+);
 const panel = new JoinPanel(document.getElementById('join-panel') as HTMLFormElement, join);
 const session = new GameSession(
 	socket,
@@ -98,6 +105,7 @@ function frame(now: number): void {
 	const view = session.view(now);
 	drawFrame(ctx, view, theme, now);
 	scoreboard.update(view.scoreboard);
+	bestRuns.update(session.leaderboard, Date.now());
 	if (panel.visible) {
 		panel.setTaken(new Map(view.scoreboard.map((row) => [row.color, row.name])));
 	}

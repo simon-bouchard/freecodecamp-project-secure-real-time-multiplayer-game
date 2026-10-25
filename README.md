@@ -4,8 +4,6 @@ A small real-time multiplayer browser game. Pick a name and a colour, then race 
 walled arena to the gold coin. Rounds last 60 seconds; the top scorer wins, and a new round
 starts 8 seconds later.
 
-#### [Deployed project link](https://freecodecamp-project-secure-real-time.onrender.com)
-
 Started as the freeCodeCamp "Secure Real Time Multiplayer Game" project, now rewritten in
 TypeScript with a server-authoritative game loop.
 
@@ -31,6 +29,10 @@ busy.
 - **Ninja look**: headband ninjas on a sandy training ground. Grab narutomaki slices (1 point)
   and the steaming ramen bowl (5 points); boosts are paper tags. An original, ninja-inspired
   design, not based on any franchise artwork.
+- **Best runs**: every round's final score is saved. The panel beside the game shows Today,
+  Month or All time, for Everyone (one row per player, their best) or Mine (your own runs and
+  rank). New personal bests that reach a top 10 are announced on the round-over screen. Each
+  browser is one player, identified by a random secret key stored in the browser.
 - **Themes**: pick **Ninja**, **Classic** (the original yellow-vs-red smileys) or **Flat**
   (plain discs on dark slate) from the Theme menu on the join screen or under the scoreboard.
   It only changes your own screen and is remembered in your browser.
@@ -62,6 +64,7 @@ busy.
 | Fixed 30 Hz client ticks, sending input, reconnects                | `src/client/session.ts`, `src/client/fixed-step.ts`            |
 | Joining, rounds and rejoin tokens                                  | `src/server/world.ts`                                          |
 | Join panel, scoreboard, saved profile                              | `src/client/ui.ts`, `src/client/storage.ts`                    |
+| Best runs: SQLite store, recording, per-player views               | `src/server/scores/`                                           |
 | Drawing order and frame view                                       | `src/client/render.ts`, wired together in `src/client/main.ts` |
 | Visual themes (add one: implement `Theme`, register it, add CSS)   | `src/client/theme/`, ninja theme in `src/client/theme/ninja/`  |
 
@@ -86,11 +89,19 @@ busy.
    than i ticks left. A speed boost therefore ends on the same input on both sides, with no
    correction. Coins and boosts are interpolated like other players, so magnet pulls glide.
 
-## Deploying on Render
+## Self-hosting
 
-Use a Node web service with:
+On the machine that runs the game:
 
-- Build command: `npm install && npm run build`
-- Start command: `npm start`
+```sh
+npm install
+npm run build
+PORT=3000 npm start
+```
 
-Render sets `PORT` automatically.
+- Best runs are stored in a SQLite file, `data/coin-race.db` by default (created on first
+  start; `data/` is git-ignored). Set `COIN_RACE_DB=/path/to/file.db` to put it elsewhere.
+- To back up the leaderboard, copy that file (plus any `-wal`/`-shm` files next to it) while
+  the server is stopped, or use `sqlite3 data/coin-race.db ".backup backup.db"` while it runs.
+- Node 24 may print a one-line "SQLite is an experimental feature" notice at startup; it is
+  harmless.

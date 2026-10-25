@@ -1,5 +1,12 @@
 import { expect, test } from 'vitest';
-import { blinkVisible, formatClock, highlightText, ordinal, winnerText } from './format.js';
+import {
+	blinkVisible,
+	formatClock,
+	formatRunTime,
+	highlightText,
+	ordinal,
+	winnerText,
+} from './format.js';
 
 test.each([
 	[42_001, '0:43'],
@@ -48,4 +55,11 @@ test.each([
 	['all', 'New all-time record!'],
 ] as const)('highlightText(%s) = %s', (period, text) => {
 	expect(highlightText(period)).toBe(text);
+});
+
+test('formatRunTime shows the time for today and the date otherwise (UTC in tests)', () => {
+	const now = Date.parse('2026-10-25T18:00:00Z');
+	expect(formatRunTime(Date.parse('2026-10-25T09:05:00Z'), now)).toBe('09:05');
+	expect(formatRunTime(Date.parse('2026-10-24T23:59:00Z'), now)).toBe('Oct 24');
+	expect(formatRunTime(Date.parse('2026-01-03T12:00:00Z'), now)).toBe('Jan 3');
 });

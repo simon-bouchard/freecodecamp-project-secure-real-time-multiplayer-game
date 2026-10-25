@@ -37,3 +37,16 @@ export function highlightText(period: Period): string {
 		period
 	];
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** When a run happened: "09:05" if it was today (local time), otherwise "Oct 24". */
+export function formatRunTime(finishedAt: number, now: number): string {
+	const when = new Date(finishedAt);
+	const today = new Date(now);
+	if (when.toDateString() === today.toDateString()) {
+		const pad = (n: number) => String(n).padStart(2, '0');
+		return `${pad(when.getHours())}:${pad(when.getMinutes())}`;
+	}
+	return `${MONTHS[when.getMonth()]} ${when.getDate()}`;
+}

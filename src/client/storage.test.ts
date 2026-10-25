@@ -1,9 +1,11 @@
 import { expect, test } from 'vitest';
 import { PALETTE } from '../shared/constants.js';
 import {
+	loadBoardPrefs,
 	loadOrCreatePlayerKey,
 	loadProfile,
 	loadThemeId,
+	saveBoardPrefs,
 	saveProfile,
 	saveThemeId,
 } from './storage.js';
@@ -85,4 +87,17 @@ test('an invalid stored key is replaced, and missing storage still yields a key'
 	);
 	expect(loadOrCreatePlayerKey(null)).toMatch(/^[0-9a-f-]{36}$/);
 	expect(loadOrCreatePlayerKey(throwingStorage())).toMatch(/^[0-9a-f-]{36}$/);
+});
+
+test('board choices default to today/everyone, round-trip, and ignore bad data', () => {
+	const storage = memoryStorage();
+	expect(loadBoardPrefs(storage)).toEqual({ period: 'today', scope: 'everyone' });
+	saveBoardPrefs(storage, { period: 'all', scope: 'mine' });
+	expect(loadBoardPrefs(storage)).toEqual({ period: 'all', scope: 'mine' });
+	storage.setItem('coin-race-board', '{"period":"week","scope":"mine"}');
+	expect(loadBoardPrefs(storage)).toEqual({ period: 'today', scope: 'mine' });
+	storage.setItem('coin-race-board', 'not json');
+	expect(loadBoardPrefs(storage)).toEqual({ period: 'today', scope: 'everyone' });
+	expect(loadBoardPrefs(throwingStorage())).toEqual({ period: 'today', scope: 'everyone' });
+	expect(() => saveBoardPrefs(throwingStorage(), { period: 'all', scope: 'mine' })).not.toThrow();
 });

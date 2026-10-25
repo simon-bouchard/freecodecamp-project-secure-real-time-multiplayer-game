@@ -426,3 +426,117 @@ canvas {
 .theme-flat .scoreboard li.self {
 	background: var(--row);
 }
+
+.best-runs {
+	margin-top: 14px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.best-runs h2 {
+	margin: 0 0 8px;
+	font-size: 16px;
+}
+
+.segmented {
+	display: flex;
+	gap: 2px;
+	margin-bottom: 6px;
+	padding: 2px;
+	border-radius: 6px;
+	background: rgba(0, 0, 0, 0.25);
+}
+
+.segmented button {
+	flex: 1;
+	padding: 4px 2px;
+	white-space: nowrap;
+	font: inherit;
+	font-size: 12px;
+	color: inherit;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.segmented button[aria-pressed='true'] {
+	background: rgba(255, 255, 255, 0.16);
+	opacity: 1;
+	font-weight: 700;
+}
+
+.best-runs-rank {
+	margin: 4px 0;
+	font-size: 12px;
+	opacity: 0.8;
+}
+
+.best-runs-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-size: 13px;
+}
+
+.best-runs-list li {
+	display: flex;
+	gap: 8px;
+	padding: 3px 6px;
+	border-radius: 4px;
+}
+
+.best-runs-list li.self {
+	background: rgba(255, 255, 255, 0.12);
+	font-weight: 700;
+}
+
+.best-runs-list li.empty {
+	opacity: 0.6;
+}
+
+.best-runs-list .lead {
+	min-width: 26px;
+	opacity: 0.75;
+}
+
+.best-runs-list .name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.theme-ninja .best-runs h2 {
+	font-family: Georgia, 'Times New Roman', serif;
+	font-weight: 800;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	font-size: 14px;
+}
+
+.theme-ninja .segmented button[aria-pressed='true'] {
+	background: var(--wood-row);
+	color: var(--cream);
+}
+
+.theme-flat .best-runs h2 {
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	font-size: 14px;
+}
+
+.theme-flat .segmented {
+	background: var(--slate);
+}
+
+.theme-flat .segmented button[aria-pressed='true'] {
+	background: var(--row);
+}
+
+/* The side panel (scoreboard, best runs, theme) stays usable above the join dimming. */
+.joining .scoreboard {
+	position: relative;
+	z-index: 2;
+}

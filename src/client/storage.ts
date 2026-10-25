@@ -1,5 +1,6 @@
 import { PALETTE } from '../shared/constants.js';
 import { isPlayerKey } from '../shared/game.js';
+import type { Period } from '../shared/protocol.js';
 import { DEFAULT_THEME_ID, type ThemeId, isThemeId } from './theme/registry.js';
 
 const KEY = 'coin-race-profile';
@@ -73,5 +74,40 @@ export function loadOrCreatePlayerKey(
 		return key;
 	} catch {
 		return newKey();
+	}
+}
+
+/** Which leaderboard the panel shows. */
+export interface BoardPrefs {
+	period: Period;
+	scope: 'everyone' | 'mine';
+}
+
+const BOARD_KEY = 'coin-race-board';
+const PERIODS: readonly Period[] = ['today', 'month', 'all'];
+
+/** Saved panel choices; each invalid or missing field falls back to today / everyone. */
+export function loadBoardPrefs(storage: Storage | null): BoardPrefs {
+	const prefs: BoardPrefs = { period: 'today', scope: 'everyone' };
+	try {
+		const raw = storage?.getItem(BOARD_KEY);
+		const saved = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+		if (PERIODS.includes(saved.period as Period)) {
+			prefs.period = saved.period as Period;
+		}
+		if (saved.scope === 'everyone' || saved.scope === 'mine') {
+			prefs.scope = saved.scope;
+		}
+	} catch {
+		// Corrupt or blocked storage: keep the defaults.
+	}
+	return prefs;
+}
+
+export function saveBoardPrefs(storage: Storage | null, prefs: BoardPrefs): void {
+	try {
+		storage?.setItem(BOARD_KEY, JSON.stringify(prefs));
+	} catch {
+		// The choice just won't be remembered.
 	}
 }

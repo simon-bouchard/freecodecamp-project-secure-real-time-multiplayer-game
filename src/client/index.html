@@ -30,6 +30,20 @@
 			<aside class="scoreboard">
 				<h2>Scoreboard</h2>
 				<ol id="scoreboard"></ol>
+				<section class="best-runs" aria-label="Best runs">
+					<h2>Best runs</h2>
+					<div class="segmented" role="group" aria-label="Period">
+						<button type="button" data-period="today">Today</button>
+						<button type="button" data-period="month">Month</button>
+						<button type="button" data-period="all">All time</button>
+					</div>
+					<div class="segmented" role="group" aria-label="Showing">
+						<button type="button" data-scope="everyone">Everyone</button>
+						<button type="button" data-scope="mine">Mine</button>
+					</div>
+					<p class="best-runs-rank"></p>
+					<ol class="best-runs-list"></ol>
+				</section>
 				<label class="theme-picker" for="side-theme"
 					>Theme
 					<select id="side-theme" class="theme-select"></select
