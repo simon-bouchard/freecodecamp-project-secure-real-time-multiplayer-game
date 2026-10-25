@@ -56,6 +56,10 @@ busy.
   connection drops, the client rejoins with it and keeps your colour, position and score.
 - **Big coins** worth 5 appear every 20-30 seconds and vanish after 5 seconds (they blink
   before they go).
+- **Bumping**: players are solid and bounce off each other. The one who gets hit is shoved
+  away harder the faster the other was running into them (a speed boost hits harder), and the
+  shove fades over 0.3 s and bounces off walls. The server decides every bump; your own client
+  replays shoves you received, so they don't fight your prediction.
 - **Boosts** appear every 8-12 seconds, up to 2 on the board at once (never two of the same
   kind), and last 10 seconds there: speed (1.5x for 5 s),
   magnet (pulls coins within 120 px for 6 s), double points (8 s) and slow others (everyone

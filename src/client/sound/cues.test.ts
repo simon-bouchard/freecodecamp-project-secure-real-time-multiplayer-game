@@ -168,3 +168,23 @@ test('reset forgets the previous round state', () => {
 	tracker.reset();
 	expect(tracker.snapshot(snap(60_000, { phase: 'results' }), 'me')).toEqual([]);
 });
+
+test('a bump plays for both players in it, and only them', () => {
+	const tracker = midRound();
+	const hit: GameEvent[] = [{ kind: 'bump', playerId: 'me', otherId: 'other' }];
+	const hitBy: GameEvent[] = [{ kind: 'bump', playerId: 'other', otherId: 'me' }];
+	const elsewhere: GameEvent[] = [{ kind: 'bump', playerId: 'other', otherId: 'third' }];
+	expect(tracker.snapshot(snap(10_033, { events: hit }), 'me')).toEqual(['bump']);
+	expect(tracker.snapshot(snap(10_300, { events: hitBy }), 'me')).toEqual(['bump']);
+	expect(tracker.snapshot(snap(10_600, { events: elsewhere }), 'me')).toEqual([]);
+});
+
+test('a chase that bumps every tick plays the bump sound at most every 150 ms', () => {
+	const tracker = midRound();
+	const events: GameEvent[] = [{ kind: 'bump', playerId: 'me', otherId: 'other' }];
+	const cues: string[] = [];
+	for (let time = 10_000; time < 10_500; time += 1000 / 30) {
+		cues.push(...tracker.snapshot(snap(time, { events }), 'me'));
+	}
+	expect(cues).toEqual(['bump', 'bump', 'bump']);
+});

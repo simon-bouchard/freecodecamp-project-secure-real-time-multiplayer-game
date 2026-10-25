@@ -57,6 +57,7 @@ export const flatSounds: SoundSet = {
 			s.blip(600 - i * 60, t + i * 0.06, { gain: 0.32, dur: 0.07, to: 560 - i * 60 });
 		}
 	},
+	bump: (s, t) => s.tone(320, t, { dur: 0.15, gain: 0.35, attack: 0.004, to: 140 }),
 	roundStart: (s, t) =>
 		s.stepTone(
 			t,

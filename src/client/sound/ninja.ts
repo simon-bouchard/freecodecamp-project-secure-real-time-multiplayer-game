@@ -43,6 +43,10 @@ export const ninjaSounds: SoundSet = {
 		s.poof(t);
 		s.tone(300, t, { type: 'triangle', dur: 0.5, gain: 0.15, to: 100 });
 	},
+	bump: (s, t) => {
+		s.taiko(t, { freq: 90, dur: 0.25, gain: 0.5 });
+		s.clack(t, { freq: 900, gain: 0.3 });
+	},
 	roundStart: (s, t) => {
 		s.taiko(t, { gain: 0.6 });
 		s.taiko(t + 0.25, { gain: 0.6 });
