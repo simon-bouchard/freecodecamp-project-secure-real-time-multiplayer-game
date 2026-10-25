@@ -186,3 +186,16 @@ test('in development the root page points to the dev client', async () => {
 	expect(res.status).toBe(200);
 	expect(await res.text()).toContain('http://localhost:5173');
 });
+
+test('picking up a boost shows up in snapshots', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world });
+	const a = await connect(0);
+	await nextSnapshot(a, (s) => s.players.length === 1);
+	world.setPlayerPosition(a.id!, { x: 300, y: 300 });
+	world.setItem('speed', { x: 300, y: 300 });
+	const snap = await nextSnapshot(a, (s) => s.item === null);
+	const self = snap.players[0]!;
+	expect(self.effects.map((e) => e.kind)).toEqual(['speed']);
+	expect(self.effects[0]!.endsAt).toBeGreaterThan(snap.time);
+});

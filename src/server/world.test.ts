@@ -3,7 +3,11 @@ import {
 	BIG_COIN_DELAY_TICKS,
 	BIG_COIN_LIFETIME_TICKS,
 	COIN_RADIUS,
+	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
+	ITEM_DELAY_TICKS,
+	ITEM_KINDS,
+	ITEM_LIFETIME_TICKS,
 	MAX_INPUT_CREDITS,
 	MAX_PLAYERS,
 	PALETTE,
@@ -413,4 +417,143 @@ test('snapshots carry empty effects and no item yet', () => {
 	const snap = bigCoinWorld().snapshot(0);
 	expect(snap.players[0]?.effects).toEqual([]);
 	expect(snap.item).toBeNull();
+});
+
+function boostWorld(): World {
+	const world = bigCoinWorld();
+	world.addPlayer('b');
+	world.setPlayerPosition('b', { x: 300, y: 400 });
+	return world;
+}
+
+function moveRight(world: World, id: string, seq: number): number {
+	const before = playerX(world, id);
+	world.queueInput(id, { seq, input: RIGHT });
+	world.step();
+	return playerX(world, id) - before;
+}
+
+test('boost item spawns on its timer and expires', () => {
+	const world = bigCoinWorld();
+	steps(world, ITEM_DELAY_TICKS[0] - 1);
+	expect(world.snapshot(0).item).toBeNull();
+	world.step();
+	const item = world.snapshot(1000).item;
+	expect(item?.kind).toBe(ITEM_KINDS[0]);
+	expect(item!.expiresAt).toBeCloseTo(1000 + ITEM_LIFETIME_TICKS * TICK_MS);
+	steps(world, ITEM_LIFETIME_TICKS);
+	expect(world.snapshot(0).item).toBeNull();
+});
+
+test('speed pickup gives the collector a full speed effect', () => {
+	const world = boostWorld();
+	world.setItem('speed', { x: 300, y: 300 });
+	world.step();
+	expect(world.snapshot(0).item).toBeNull();
+	expect(world.effectsOf('a').get('speed')).toBe(EFFECT_TICKS.speed);
+	expect(world.effectsOf('b').size).toBe(0);
+	expect(moveRight(world, 'a', 1)).toBeCloseTo(15);
+});
+
+test('an effect with 2 ticks left boosts exactly the next 2 inputs', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'speed', 2);
+	expect(moveRight(world, 'a', 1)).toBeCloseTo(15);
+	expect(moveRight(world, 'a', 2)).toBeCloseTo(15);
+	expect(moveRight(world, 'a', 3)).toBeCloseTo(10);
+	expect(world.effectsOf('a').size).toBe(0);
+});
+
+test('slow pickup slows everyone except the collector', () => {
+	const world = boostWorld();
+	world.setItem('slow', { x: 300, y: 300 });
+	world.step();
+	expect(world.effectsOf('a').size).toBe(0);
+	expect(world.effectsOf('b').get('slow')).toBe(EFFECT_TICKS.slow);
+	expect(moveRight(world, 'b', 1)).toBeCloseTo(5);
+});
+
+test('speed and slow stack', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'speed', 10);
+	world.setEffect('a', 'slow', 10);
+	expect(moveRight(world, 'a', 1)).toBeCloseTo(7.5);
+});
+
+test('picking up an active boost restarts its timer', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'speed', 10);
+	world.setItem('speed', { x: 300, y: 300 });
+	world.step();
+	expect(world.effectsOf('a').get('speed')).toBe(EFFECT_TICKS.speed);
+});
+
+test('double points doubles normal and big coins', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'double', 100);
+	world.setCoinPosition({ x: 300, y: 300 });
+	world.step();
+	expect(world.snapshot(0).players.find((p) => p.id === 'a')?.score).toBe(2);
+	world.setBigCoin({ x: 300, y: 300 });
+	world.step();
+	expect(world.snapshot(0).players.find((p) => p.id === 'a')?.score).toBe(12);
+});
+
+test('magnet pulls coins in range and they get collected', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'magnet', 100);
+	world.setCoinPosition({ x: 400, y: 300 });
+	world.step();
+	expect(world.snapshot(0).coin.x).toBeCloseTo(390);
+	steps(world, 10);
+	expect(world.snapshot(0).players.find((p) => p.id === 'a')?.score).toBe(1);
+});
+
+test('magnet ignores coins out of range', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'magnet', 100);
+	world.setCoinPosition({ x: 430, y: 300 });
+	world.step();
+	expect(world.snapshot(0).coin.x).toBe(430);
+});
+
+test('magnet also pulls the big coin', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'magnet', 100);
+	world.setBigCoin({ x: 300, y: 200 });
+	world.step();
+	expect(world.snapshot(0).bigCoin?.y).toBeCloseTo(210);
+});
+
+test('with two magnets the coin goes to the nearer player', () => {
+	const world = boostWorld();
+	world.setPlayerPosition('a', { x: 200, y: 300 });
+	world.setPlayerPosition('b', { x: 400, y: 300 });
+	world.setEffect('a', 'magnet', 100);
+	world.setEffect('b', 'magnet', 100);
+	world.setCoinPosition({ x: 290, y: 300 });
+	world.step();
+	expect(world.snapshot(0).coin.x).toBeCloseTo(280);
+});
+
+test('round end clears items and effects; the next round starts clean', () => {
+	const world = boostWorld();
+	world.setItem('magnet', { x: 100, y: 400 });
+	world.setEffect('a', 'speed', 1000);
+	world.setEffect('b', 'slow', 1000);
+	steps(world, ROUND_TICKS);
+	expect(world.phase).toBe('results');
+	expect(world.snapshot(0).item).toBeNull();
+	expect(world.effectsOf('a').size).toBe(0);
+	expect(world.effectsOf('b').size).toBe(0);
+	steps(world, RESULTS_TICKS);
+	expect(world.phase).toBe('playing');
+	expect(world.snapshot(0).item).toBeNull();
+});
+
+test('snapshots list effects with their end time', () => {
+	const world = boostWorld();
+	world.setEffect('a', 'double', 30);
+	const a = world.snapshot(1000).players.find((p) => p.id === 'a');
+	expect(a?.effects).toEqual([{ kind: 'double', endsAt: 1000 + 30 * TICK_MS }]);
 });

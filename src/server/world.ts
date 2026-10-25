@@ -6,7 +6,14 @@ import {
 	BIG_COIN_VALUE,
 	COIN_RADIUS,
 	COIN_SPAWN_ATTEMPTS,
+	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
+	ITEM_DELAY_TICKS,
+	ITEM_KINDS,
+	ITEM_LIFETIME_TICKS,
+	ITEM_RADIUS,
+	MAGNET_PULL_SPEED,
+	MAGNET_RANGE,
 	MAX_INPUT_CREDITS,
 	MAX_PLAYERS,
 	MAX_QUEUED_INPUTS,
@@ -24,11 +31,14 @@ import {
 	normalizeName,
 	pickCoinSpawn,
 	pickSpawn,
+	pullToward,
 	randomPointInArena,
+	speedMultiplier,
 } from '../shared/game.js';
 import type {
 	CoinState,
 	InputMessage,
+	ItemKind,
 	JoinRequest,
 	JoinResult,
 	PlayerState,
@@ -45,8 +55,14 @@ interface TimedPickup {
 	ticksLeft: number;
 }
 
+/** A boost waiting on the board. */
+interface BoardItem extends TimedPickup {
+	kind: ItemKind;
+}
+
 interface PlayerEntry {
 	state: PlayerState;
+	effects: Map<ItemKind, number>;
 	queue: InputMessage[];
 	credits: number;
 	highestSeq: number;
@@ -64,6 +80,9 @@ export class World {
 	private bigCoin: TimedPickup | null = null;
 	private nextBigCoinTimer = 0;
 	private bigCoinIds = 0;
+	private item: BoardItem | null = null;
+	private nextItemTimer = 0;
+	private itemIds = 0;
 
 	constructor(
 		private readonly rng: () => number = Math.random,
@@ -89,7 +108,14 @@ export class World {
 			lastSeq: 0,
 			effects: [],
 		};
-		const entry = { state, queue: [], credits: MAX_INPUT_CREDITS, highestSeq: 0, token: '' };
+		const entry: PlayerEntry = {
+			state,
+			effects: new Map(),
+			queue: [],
+			credits: MAX_INPUT_CREDITS,
+			highestSeq: 0,
+			token: '',
+		};
 		this.players.set(id, entry);
 		if (this.roundPhase === 'waiting') {
 			this.startRound();
@@ -157,9 +183,13 @@ export class World {
 
 		if (this.roundPhase === 'playing') {
 			this.applyInputs();
+			this.tickEffects();
+			this.applyMagnets();
 			this.updateBigCoin();
+			this.updateItem();
 			this.collectCoin();
 			this.collectBigCoin();
+			this.collectItem();
 			if (--this.ticksLeft <= 0) {
 				this.endRound();
 			}
@@ -179,7 +209,13 @@ export class World {
 		return {
 			tick: this.tick,
 			time,
-			players: [...this.players.values()].map((e) => ({ ...e.state, effects: [] })),
+			players: [...this.players.values()].map((e) => ({
+				...e.state,
+				effects: [...e.effects].map(([kind, ticks]) => ({
+					kind,
+					endsAt: time + ticks * TICK_MS,
+				})),
+			})),
 			coin: { ...this.coin },
 			bigCoin: this.bigCoin && {
 				id: this.bigCoin.id,
@@ -187,7 +223,13 @@ export class World {
 				y: this.bigCoin.y,
 				expiresAt: time + this.bigCoin.ticksLeft * TICK_MS,
 			},
-			item: null,
+			item: this.item && {
+				id: this.item.id,
+				kind: this.item.kind,
+				x: this.item.x,
+				y: this.item.y,
+				expiresAt: time + this.item.ticksLeft * TICK_MS,
+			},
 			round: {
 				phase: this.roundPhase,
 				endsAt: this.roundPhase === 'waiting' ? null : time + this.ticksLeft * TICK_MS,
@@ -220,6 +262,21 @@ export class World {
 		this.bigCoin = pos && { id: ++this.bigCoinIds, ...pos, ticksLeft: BIG_COIN_LIFETIME_TICKS };
 	}
 
+	/** Test hook: place a fresh boost of `kind`, or remove it with null. */
+	setItem(kind: ItemKind, pos: Vec | null): void {
+		this.item = pos && { id: ++this.itemIds, kind, ...pos, ticksLeft: ITEM_LIFETIME_TICKS };
+	}
+
+	/** Test hook: give a player an effect for `ticks` ticks. */
+	setEffect(id: string, kind: ItemKind, ticks: number): void {
+		this.players.get(id)?.effects.set(kind, ticks);
+	}
+
+	/** Test hook: a player's active effects and their remaining ticks. */
+	effectsOf(id: string): ReadonlyMap<ItemKind, number> {
+		return this.players.get(id)?.effects ?? new Map();
+	}
+
 	/** Test hook: set a player's score. */
 	setScore(id: string, score: number): void {
 		const entry = this.players.get(id);
@@ -233,7 +290,8 @@ export class World {
 			entry.credits = Math.min(entry.credits + INPUT_RATE_TOLERANCE, MAX_INPUT_CREDITS);
 			while (entry.credits >= 1 && entry.queue.length > 0) {
 				const msg = entry.queue.shift()!;
-				const pos = movePlayer(entry.state, msg.input, TICK_DT);
+				const factor = speedMultiplier(entry.effects.keys());
+				const pos = movePlayer(entry.state, msg.input, TICK_DT, factor);
 				entry.state.x = pos.x;
 				entry.state.y = pos.y;
 				entry.state.lastSeq = msg.seq;
@@ -253,10 +311,94 @@ export class World {
 		}
 	}
 
+	/** Count every effect down by one tick, removing those that run out. */
+	private tickEffects(): void {
+		for (const { effects } of this.players.values()) {
+			for (const [kind, ticks] of effects) {
+				if (ticks <= 1) {
+					effects.delete(kind);
+				} else {
+					effects.set(kind, ticks - 1);
+				}
+			}
+		}
+	}
+
+	/** Pull each coin toward the nearest magnet holder within range. */
+	private applyMagnets(): void {
+		const holders = [...this.players.values()]
+			.filter((e) => e.effects.has('magnet'))
+			.map((e) => e.state);
+		if (holders.length === 0) {
+			return;
+		}
+		const pull = <T extends Vec>(coin: T, radius: number): T => {
+			let nearest: PlayerState | null = null;
+			let best = MAGNET_RANGE;
+			for (const holder of holders) {
+				const distance = Math.hypot(holder.x - coin.x, holder.y - coin.y);
+				if (distance <= best) {
+					best = distance;
+					nearest = holder;
+				}
+			}
+			if (!nearest) {
+				return coin;
+			}
+			return { ...coin, ...pullToward(coin, nearest, MAGNET_PULL_SPEED * TICK_DT, radius) };
+		};
+		this.coin = pull(this.coin, COIN_RADIUS);
+		if (this.bigCoin) {
+			this.bigCoin = pull(this.bigCoin, BIG_COIN_RADIUS);
+		}
+	}
+
+	private updateItem(): void {
+		if (this.item) {
+			if (--this.item.ticksLeft <= 0) {
+				this.item = null;
+				this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
+			}
+		} else if (--this.nextItemTimer <= 0) {
+			const kind = ITEM_KINDS[Math.floor(this.rng() * ITEM_KINDS.length)]!;
+			this.setItem(kind, pickSpawn(ITEM_RADIUS, this.obstacles(), this.rng));
+		}
+	}
+
+	/** First player touching the boost gets it; `slow` goes to everyone else instead. */
+	private collectItem(): void {
+		const item = this.item;
+		if (!item) {
+			return;
+		}
+		for (const entry of this.players.values()) {
+			if (!circlesOverlap(entry.state, PLAYER_RADIUS, item, ITEM_RADIUS)) {
+				continue;
+			}
+			if (item.kind === 'slow') {
+				for (const other of this.players.values()) {
+					if (other !== entry) {
+						other.effects.set('slow', EFFECT_TICKS.slow);
+					}
+				}
+			} else {
+				entry.effects.set(item.kind, EFFECT_TICKS[item.kind]);
+			}
+			this.item = null;
+			this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
+			return;
+		}
+	}
+
+	private coinValue(entry: PlayerEntry, base: number): number {
+		return entry.effects.has('double') ? base * 2 : base;
+	}
+
 	private collectCoin(): void {
-		for (const { state } of this.players.values()) {
+		for (const entry of this.players.values()) {
+			const { state } = entry;
 			if (circlesOverlap(state, PLAYER_RADIUS, this.coin, COIN_RADIUS)) {
-				state.score++;
+				state.score += this.coinValue(entry, 1);
 				this.respawnCoin();
 				return;
 			}
@@ -268,9 +410,9 @@ export class World {
 		if (!big) {
 			return;
 		}
-		for (const { state } of this.players.values()) {
-			if (circlesOverlap(state, PLAYER_RADIUS, big, BIG_COIN_RADIUS)) {
-				state.score += BIG_COIN_VALUE;
+		for (const entry of this.players.values()) {
+			if (circlesOverlap(entry.state, PLAYER_RADIUS, big, BIG_COIN_RADIUS)) {
+				entry.state.score += this.coinValue(entry, BIG_COIN_VALUE);
 				this.bigCoin = null;
 				this.nextBigCoinTimer = this.randomTicks(BIG_COIN_DELAY_TICKS);
 				return;
@@ -302,12 +444,19 @@ export class World {
 		if (this.bigCoin) {
 			circles.push({ x: this.bigCoin.x, y: this.bigCoin.y, r: BIG_COIN_RADIUS });
 		}
+		if (this.item) {
+			circles.push({ x: this.item.x, y: this.item.y, r: ITEM_RADIUS });
+		}
 		return circles;
 	}
 
 	/** Remove round-only pickups (big coin, boosts) and effects. */
 	private clearExtras(): void {
 		this.bigCoin = null;
+		this.item = null;
+		for (const { effects } of this.players.values()) {
+			effects.clear();
+		}
 	}
 
 	private randomTicks([min, max]: readonly [number, number]): number {
@@ -328,6 +477,7 @@ export class World {
 		this.winners = [];
 		this.clearExtras();
 		this.nextBigCoinTimer = this.randomTicks(BIG_COIN_DELAY_TICKS);
+		this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
 	}
 
 	private endRound(): void {
