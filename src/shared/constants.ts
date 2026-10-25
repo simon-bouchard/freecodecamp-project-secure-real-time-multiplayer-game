@@ -5,7 +5,7 @@ export const CANVAS = { width: 640, height: 480 } as const;
 export const ARENA = { x: 5, y: 50, width: 630, height: 425, wall: 2 } as const;
 
 export const PLAYER_RADIUS = 15;
-export const COIN_RADIUS = 7;
+export const COIN_RADIUS = 9;
 
 /** Player speed in pixels per second. */
 export const PLAYER_SPEED = 300;
@@ -75,7 +75,7 @@ export const NAME_MAX_LENGTH = 12;
 export const ROUND_TICKS = 60 * TICK_RATE;
 export const RESULTS_TICKS = 8 * TICK_RATE;
 
-export const BIG_COIN_RADIUS = 11;
+export const BIG_COIN_RADIUS = 14;
 export const BIG_COIN_VALUE = 5;
 export const BIG_COIN_LIFETIME_TICKS = 5 * TICK_RATE;
 /** Inclusive range of ticks between big coins. */

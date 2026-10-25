@@ -81,6 +81,8 @@ export class World {
 	private item: BoardItem | null = null;
 	private nextItemTimer = 0;
 	private itemIds = 0;
+	/** Boost kinds still to deal before reshuffling, so all four appear before any repeat. */
+	private itemBag: ItemKind[] = [];
 
 	constructor(
 		private readonly rng: () => number = Math.random,
@@ -358,9 +360,20 @@ export class World {
 				this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
 			}
 		} else if (--this.nextItemTimer <= 0) {
-			const kind = ITEM_KINDS[Math.floor(this.rng() * ITEM_KINDS.length)]!;
-			this.setItem(kind, pickSpawn(ITEM_RADIUS, this.obstacles(), this.rng));
+			this.setItem(this.nextItemKind(), pickSpawn(ITEM_RADIUS, this.obstacles(), this.rng));
 		}
+	}
+
+	/** Deal the next boost kind from a shuffled bag of all four, refilling it when empty. */
+	private nextItemKind(): ItemKind {
+		if (this.itemBag.length === 0) {
+			this.itemBag = [...ITEM_KINDS];
+			for (let i = this.itemBag.length - 1; i > 0; i--) {
+				const j = Math.floor(this.rng() * (i + 1));
+				[this.itemBag[i], this.itemBag[j]] = [this.itemBag[j]!, this.itemBag[i]!];
+			}
+		}
+		return this.itemBag.pop()!;
 	}
 
 	/** First player touching the boost gets it; `slow` goes to everyone else instead. */

@@ -62,24 +62,24 @@ describe('coin spawning', () => {
 	});
 
 	test('rng extremes stay inside', () => {
-		expect(randomPointInArena(COIN_RADIUS, () => 0)).toEqual({ x: 13, y: 58 });
-		expect(randomPointInArena(COIN_RADIUS, () => 0.999999).x).toBeLessThanOrEqual(627);
+		expect(randomPointInArena(COIN_RADIUS, () => 0)).toEqual({ x: 15, y: 60 });
+		expect(randomPointInArena(COIN_RADIUS, () => 0.999999).x).toBeLessThanOrEqual(625);
 	});
 
 	test('coin avoids players', () => {
 		const seq = [0, 0, 0.5, 0.5];
 		let i = 0;
-		const p = pickCoinSpawn([{ x: 13, y: 58 }], () => seq[i++] ?? 0.5);
+		const p = pickCoinSpawn([{ x: 15, y: 60 }], () => seq[i++] ?? 0.5);
 		expect(p).toEqual(randomPointInArena(COIN_RADIUS, () => 0.5));
 	});
 
 	test('coin spawn falls back when no free spot', () => {
 		let calls = 0;
-		const p = pickCoinSpawn([{ x: 13, y: 58 }], () => {
+		const p = pickCoinSpawn([{ x: 15, y: 60 }], () => {
 			calls++;
 			return 0;
 		});
-		expect(p).toEqual({ x: 13, y: 58 });
+		expect(p).toEqual({ x: 15, y: 60 });
 		expect(calls).toBe(COIN_SPAWN_ATTEMPTS * 2);
 	});
 });
@@ -191,7 +191,7 @@ describe('boost maths', () => {
 	test('pickSpawn avoids circles and falls back after the attempt limit', () => {
 		const seq = [0, 0, 0.5, 0.5];
 		let i = 0;
-		const avoid = [{ x: 13, y: 58, r: 15 }];
+		const avoid = [{ x: 15, y: 60, r: 15 }];
 		expect(pickSpawn(COIN_RADIUS, avoid, () => seq[i++] ?? 0.5)).toEqual(
 			randomPointInArena(COIN_RADIUS, () => 0.5),
 		);
@@ -200,7 +200,7 @@ describe('boost maths', () => {
 			calls++;
 			return 0;
 		});
-		expect(fallback).toEqual({ x: 13, y: 58 });
+		expect(fallback).toEqual({ x: 15, y: 60 });
 		expect(calls).toBe(COIN_SPAWN_ATTEMPTS * 2);
 	});
 

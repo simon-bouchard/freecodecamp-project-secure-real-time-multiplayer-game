@@ -590,3 +590,21 @@ test('a joining player never spawns on the big coin', () => {
 	const b = snap.players.find((p) => p.id === 'b')!;
 	expect(circlesOverlap(b, PLAYER_RADIUS, snap.bigCoin!, BIG_COIN_RADIUS)).toBe(false);
 });
+
+test('boosts cycle through all four kinds before repeating', () => {
+	const world = new World();
+	world.addPlayer('a');
+	world.setPlayerPosition('a', { x: 30, y: 70 });
+	const kinds: string[] = [];
+	for (let t = 0; t < 10_000 && kinds.length < 8; t++) {
+		world.step();
+		const item = world.snapshot(0).item;
+		if (item) {
+			kinds.push(item.kind);
+			world.setItem(item.kind, null);
+		}
+	}
+	expect(kinds).toHaveLength(8);
+	expect([...kinds.slice(0, 4)].sort()).toEqual([...ITEM_KINDS].sort());
+	expect([...kinds.slice(4, 8)].sort()).toEqual([...ITEM_KINDS].sort());
+});

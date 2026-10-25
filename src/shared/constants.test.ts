@@ -6,7 +6,7 @@ test('innerBounds for a player', () => {
 });
 
 test('innerBounds for a coin', () => {
-	expect(innerBounds(COIN_RADIUS)).toEqual({ minX: 13, maxX: 627, minY: 58, maxY: 467 });
+	expect(innerBounds(COIN_RADIUS)).toEqual({ minX: 15, maxX: 625, minY: 60, maxY: 465 });
 });
 
 test('PALETTE has 12 unique colours and no gold', () => {
