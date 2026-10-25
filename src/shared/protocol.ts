@@ -68,6 +68,12 @@ export interface CoinState {
 	y: number;
 }
 
+/** A pickup during the tick a snapshot follows; clients use these for sounds. */
+export type GameEvent =
+	| { kind: 'coin'; playerId: string }
+	| { kind: 'bigCoin'; playerId: string }
+	| { kind: 'item'; item: ItemKind; playerId: string };
+
 /** Full game state broadcast once per server tick; `time` is server ms. */
 export interface Snapshot {
 	tick: number;
@@ -77,6 +83,7 @@ export interface Snapshot {
 	bigCoin: BigCoinState | null;
 	item: ItemState | null;
 	round: RoundState;
+	events: GameEvent[];
 }
 
 export type RoundPhase = 'waiting' | 'playing' | 'results';

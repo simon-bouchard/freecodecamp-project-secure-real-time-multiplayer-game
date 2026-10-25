@@ -644,3 +644,25 @@ test('a failing round-end listener does not stop the world', () => {
 	expect(world.snapshot(0).tick).toBe(before + ROUND_TICKS + 3);
 	expect(world.phase).toBe('results');
 });
+
+test('snapshot events name who picked up what this tick', () => {
+	const world = boostWorld();
+	world.setCoinPosition({ x: 300, y: 300 });
+	world.step();
+	expect(world.snapshot(0).events).toEqual([{ kind: 'coin', playerId: 'a' }]);
+	world.setBigCoin({ x: 300, y: 300 });
+	world.step();
+	expect(world.snapshot(0).events).toEqual([{ kind: 'bigCoin', playerId: 'a' }]);
+	world.setItem('slow', { x: 300, y: 300 });
+	world.step();
+	expect(world.snapshot(0).events).toEqual([{ kind: 'item', item: 'slow', playerId: 'a' }]);
+});
+
+test('events only cover the last tick', () => {
+	const world = boostWorld();
+	world.setCoinPosition({ x: 300, y: 300 });
+	world.step();
+	world.setCoinPosition({ x: 600, y: 440 });
+	world.step();
+	expect(world.snapshot(0).events).toEqual([]);
+});

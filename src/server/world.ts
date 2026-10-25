@@ -35,6 +35,7 @@ import {
 } from '../shared/game.js';
 import type {
 	CoinState,
+	GameEvent,
 	InputMessage,
 	ItemKind,
 	JoinRequest,
@@ -98,6 +99,8 @@ export class World {
 	private itemIds = 0;
 	/** Boost kinds still to deal before reshuffling, so all four appear before any repeat. */
 	private itemBag: ItemKind[] = [];
+	/** Pickups during the last tick, sent with the next snapshot. */
+	private events: GameEvent[] = [];
 	private readonly roundEndListeners: ((results: RoundResult[]) => void)[] = [];
 
 	constructor(
@@ -206,6 +209,7 @@ export class World {
 
 	/** Advance one tick of the current round phase. */
 	step(): void {
+		this.events = [];
 		if (this.players.size === 0) {
 			this.roundPhase = 'waiting';
 			this.clearExtras();
@@ -265,6 +269,7 @@ export class World {
 				endsAt: this.roundPhase === 'waiting' ? null : time + this.ticksLeft * TICK_MS,
 				winners: [...this.winners],
 			},
+			events: this.events.map((e) => ({ ...e })),
 		};
 	}
 
@@ -425,6 +430,7 @@ export class World {
 			} else {
 				entry.effects.set(item.kind, EFFECT_TICKS[item.kind]);
 			}
+			this.events.push({ kind: 'item', item: item.kind, playerId: entry.state.id });
 			this.item = null;
 			this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
 			return;
@@ -440,6 +446,7 @@ export class World {
 			const { state } = entry;
 			if (circlesOverlap(state, PLAYER_RADIUS, this.coin, COIN_RADIUS)) {
 				state.score += this.coinValue(entry, 1);
+				this.events.push({ kind: 'coin', playerId: state.id });
 				this.respawnCoin();
 				return;
 			}
@@ -454,6 +461,7 @@ export class World {
 		for (const entry of this.players.values()) {
 			if (circlesOverlap(entry.state, PLAYER_RADIUS, big, BIG_COIN_RADIUS)) {
 				entry.state.score += this.coinValue(entry, BIG_COIN_VALUE);
+				this.events.push({ kind: 'bigCoin', playerId: entry.state.id });
 				this.bigCoin = null;
 				this.nextBigCoinTimer = this.randomTicks(BIG_COIN_DELAY_TICKS);
 				return;

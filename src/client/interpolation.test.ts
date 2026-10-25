@@ -16,6 +16,7 @@ function snap(time: number, players: PlayerState[]): Snapshot {
 		bigCoin: null,
 		item: null,
 		round: { phase: 'playing', endsAt: null, winners: [] },
+		events: [],
 	};
 }
 
