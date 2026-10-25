@@ -9,7 +9,7 @@ import {
 import type { Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
 import type { DrawnPlayer, FrameView } from '../../render.js';
-import { roundStatus } from '../shared.js';
+import { drawResultRows, roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
 import {
 	TAG_COLORS,
@@ -314,9 +314,15 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillText(winnerText(names), centerX, y + 84, width - 40);
 
 	ctx.font = 'bold 15px system-ui, sans-serif';
-	view.scoreboard.slice(0, 5).forEach((row, i) => {
-		ctx.fillStyle = readableOnPaper(row.color);
-		ctx.fillText(`${i + 1}. ${row.name}  ${row.score}`, centerX, y + 126 + i * 26, width - 40);
+	drawResultRows(ctx, view, {
+		centerX,
+		top: y + 126,
+		rowGap: 24,
+		maxWidth: width - 40,
+		font: 'bold 15px system-ui, sans-serif',
+		rowColor: (row) => readableOnPaper(row.color),
+		highlightFont: 'bold 11px system-ui, sans-serif',
+		highlightColor: COLORS.winner,
 	});
 
 	const seconds = Math.max(0, Math.ceil(((round.endsAt ?? 0) - view.serverNow) / 1000));

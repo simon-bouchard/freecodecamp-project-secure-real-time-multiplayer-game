@@ -1,4 +1,4 @@
-import type { ItemKind, RoundState, Vec } from '../shared/protocol.js';
+import type { ItemKind, Period, RoundState, Vec } from '../shared/protocol.js';
 import type { Theme } from './theme/types.js';
 
 /** A player as drawn this frame. */
@@ -33,6 +33,8 @@ export interface FrameView {
 	round: RoundState | null;
 	serverNow: number;
 	scoreboard: ScoreRow[];
+	/** During results: players (by in-game id) who just set a new best, and in which period. */
+	highlights: Map<string, Period>;
 }
 
 /** Draw one frame with `theme`; the local player is drawn last so it is on top. */

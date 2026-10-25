@@ -10,7 +10,7 @@ import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
 import type { DrawnPlayer, FrameView } from '../../render.js';
 import { labelLayout, labelX } from '../layout.js';
-import { roundStatus } from '../shared.js';
+import { drawResultRows, roundStatus } from '../shared.js';
 import { SmokeTrail } from '../trail.js';
 import type { Theme } from '../types.js';
 import { wavyRingPath } from './geometry.js';
@@ -237,9 +237,15 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillText(winnerText(names), centerX, y + 82, width - 40);
 
 	ctx.font = `600 15px ${FONT}`;
-	view.scoreboard.slice(0, 5).forEach((row, i) => {
-		ctx.fillStyle = row.color;
-		ctx.fillText(`${i + 1}. ${row.name}  ${row.score}`, centerX, y + 122 + i * 25, width - 40);
+	drawResultRows(ctx, view, {
+		centerX,
+		top: y + 122,
+		rowGap: 23,
+		maxWidth: width - 40,
+		font: `600 15px ${FONT}`,
+		rowColor: (row) => row.color,
+		highlightFont: `700 11px ${FONT}`,
+		highlightColor: COLORS.gold,
 	});
 
 	const seconds = Math.max(0, Math.ceil(((round.endsAt ?? 0) - view.serverNow) / 1000));

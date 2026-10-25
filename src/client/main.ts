@@ -4,7 +4,13 @@ import { fitCanvasToScreen } from './canvas.js';
 import { Keyboard } from './input.js';
 import { drawFrame } from './render.js';
 import { type GameSocket, GameSession } from './session.js';
-import { loadProfile, loadThemeId, saveProfile, saveThemeId } from './storage.js';
+import {
+	loadOrCreatePlayerKey,
+	loadProfile,
+	loadThemeId,
+	saveProfile,
+	saveThemeId,
+} from './storage.js';
 import { THEMES } from './theme/index.js';
 import { THEME_OPTIONS, type ThemeId, isThemeId } from './theme/registry.js';
 import { JoinPanel, Scoreboard } from './ui.js';
@@ -29,7 +35,7 @@ const storage = (() => {
 	}
 })();
 
-const socket: GameSocket = io();
+const socket: GameSocket = io({ auth: { playerKey: loadOrCreatePlayerKey(storage) } });
 const keyboard = new Keyboard(window);
 const scoreboard = new Scoreboard(document.getElementById('scoreboard')!);
 const panel = new JoinPanel(document.getElementById('join-panel') as HTMLFormElement, join);

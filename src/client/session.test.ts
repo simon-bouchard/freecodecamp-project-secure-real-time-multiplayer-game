@@ -234,3 +234,26 @@ test('a freshly respawned coin shows immediately, before interpolation catches u
 	stub.emit('snapshot', { ...base, time: now, coin: { id: 2, x: 400, y: 300 } });
 	expect(session.view(now + 5).coin).toEqual({ x: 400, y: 300 });
 });
+
+test('the session keeps the latest leaderboard and exposes highlights during results', () => {
+	const stub = Object.assign(new EventEmitter(), { connected: true, id: 'me' });
+	const session = new GameSession(stub as unknown as GameSocket, () => NO_INPUT);
+	const empty = { everyone: [], mine: [], myRank: null };
+	const view = {
+		boards: { today: empty, month: empty, all: empty },
+		highlights: [{ playerId: 'p2', period: 'month' as const }],
+	};
+	stub.emit('leaderboard', view);
+	expect(session.leaderboard).toEqual(view);
+	const now = performance.now();
+	stub.emit('snapshot', {
+		tick: 0,
+		time: now,
+		players: [],
+		coin: { id: 1, x: 100, y: 100 },
+		bigCoin: null,
+		item: null,
+		round: { phase: 'results', endsAt: now + 8000, winners: [] },
+	});
+	expect(session.view(now).highlights).toEqual(new Map([['p2', 'month']]));
+});

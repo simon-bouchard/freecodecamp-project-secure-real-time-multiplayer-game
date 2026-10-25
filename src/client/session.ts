@@ -8,6 +8,7 @@ import type {
 	JoinFailure,
 	JoinRequest,
 	JoinResult,
+	LeaderboardView,
 	ServerToClientEvents,
 	Snapshot,
 	Vec,
@@ -39,6 +40,7 @@ export class GameSession {
 	private profile: Profile | null = null;
 	private isJoined = false;
 	private pendingJoin: Promise<JoinResult> | null = null;
+	private latestLeaderboard: LeaderboardView | null = null;
 
 	constructor(
 		private readonly socket: GameSocket,
@@ -55,6 +57,14 @@ export class GameSession {
 			this.isJoined = false;
 		});
 		socket.on('snapshot', (snapshot) => this.onSnapshot(snapshot, performance.now()));
+		socket.on('leaderboard', (view) => {
+			this.latestLeaderboard = view;
+		});
+	}
+
+	/** Latest leaderboards sent by the server for this player, if any yet. */
+	get leaderboard(): LeaderboardView | null {
+		return this.latestLeaderboard;
 	}
 
 	get joined(): boolean {
@@ -170,6 +180,10 @@ export class GameSession {
 				score: p.score,
 				self: p.id === selfId,
 			})),
+			highlights:
+				latest?.round.phase === 'results' && this.latestLeaderboard
+					? new Map(this.latestLeaderboard.highlights.map((h) => [h.playerId, h.period]))
+					: new Map(),
 		};
 	}
 

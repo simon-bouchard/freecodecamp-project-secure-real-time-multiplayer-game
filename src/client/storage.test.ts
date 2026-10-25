@@ -1,6 +1,12 @@
 import { expect, test } from 'vitest';
 import { PALETTE } from '../shared/constants.js';
-import { loadProfile, loadThemeId, saveProfile, saveThemeId } from './storage.js';
+import {
+	loadOrCreatePlayerKey,
+	loadProfile,
+	loadThemeId,
+	saveProfile,
+	saveThemeId,
+} from './storage.js';
 
 function memoryStorage(): Storage {
 	const data = new Map<string, string>();
@@ -62,4 +68,21 @@ test('theme choice round-trips and unknown values fall back to the default', () 
 	expect(loadThemeId(throwingStorage())).toBe('ninja');
 	expect(loadThemeId(null)).toBe('ninja');
 	expect(() => saveThemeId(throwingStorage(), 'classic')).not.toThrow();
+});
+
+test('the player key is created once and then reused', () => {
+	const storage = memoryStorage();
+	const first = loadOrCreatePlayerKey(storage);
+	expect(first).toMatch(/^[0-9a-f-]{36}$/);
+	expect(loadOrCreatePlayerKey(storage)).toBe(first);
+});
+
+test('an invalid stored key is replaced, and missing storage still yields a key', () => {
+	const storage = memoryStorage();
+	storage.setItem('coin-race-player-key', 'tampered');
+	expect(loadOrCreatePlayerKey(storage, () => '11111111-2222-3333-4444-555555555555')).toBe(
+		'11111111-2222-3333-4444-555555555555',
+	);
+	expect(loadOrCreatePlayerKey(null)).toMatch(/^[0-9a-f-]{36}$/);
+	expect(loadOrCreatePlayerKey(throwingStorage())).toMatch(/^[0-9a-f-]{36}$/);
 });

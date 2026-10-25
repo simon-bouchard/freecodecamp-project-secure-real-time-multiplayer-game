@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { blinkVisible, formatClock, ordinal, winnerText } from './format.js';
+import { blinkVisible, formatClock, highlightText, ordinal, winnerText } from './format.js';
 
 test.each([
 	[42_001, '0:43'],
@@ -40,4 +40,12 @@ test.each([
 	[21, '21st'],
 ])('ordinal(%d) = %s', (n, text) => {
 	expect(ordinal(n)).toBe(text);
+});
+
+test.each([
+	['today', 'New best today!'],
+	['month', 'New best this month!'],
+	['all', 'New all-time record!'],
+] as const)('highlightText(%s) = %s', (period, text) => {
+	expect(highlightText(period)).toBe(text);
 });
