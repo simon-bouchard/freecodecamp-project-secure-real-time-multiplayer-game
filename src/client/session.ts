@@ -1,14 +1,16 @@
 import type { Socket } from 'socket.io-client';
-import { RENDER_DELAY_MS, TICK_MS } from '../shared/constants.js';
+import { EFFECT_TICKS, RENDER_DELAY_MS, TICK_MS } from '../shared/constants.js';
 import { NO_INPUT, calculateRank, sortScoreboard } from '../shared/game.js';
 import type {
 	ClientToServerEvents,
 	InputState,
+	ItemState,
 	JoinFailure,
 	JoinRequest,
 	JoinResult,
 	ServerToClientEvents,
 	Snapshot,
+	Vec,
 } from '../shared/protocol.js';
 import { FixedStep } from './fixed-step.js';
 import { SnapshotBuffer } from './interpolation.js';
@@ -121,7 +123,13 @@ export class GameSession {
 		const latest = this.buffer.latest();
 		const players = latest?.players ?? [];
 		const serverNow = this.buffer.serverTimeAt(now);
-		const sampled = this.buffer.sample(serverNow - RENDER_DELAY_MS);
+		const renderTime = serverNow - RENDER_DELAY_MS;
+		const sampled = this.buffer.sample(renderTime);
+		const pickups = this.buffer.sampleEntities(renderTime, (s) => [
+			{ key: `coin:${s.coin.id}`, x: s.coin.x, y: s.coin.y },
+			...(s.bigCoin ? [{ key: `big:${s.bigCoin.id}`, x: s.bigCoin.x, y: s.bigCoin.y }] : []),
+			...(s.item ? [{ key: `item:${s.item.id}`, x: s.item.x, y: s.item.y }] : []),
+		]);
 		const selfPos =
 			selfId && this.predictor.position
 				? this.predictor.displayPosition(frameMs, this.steps.alpha)
@@ -132,13 +140,22 @@ export class GameSession {
 			const self = p.id === selfId;
 			const pos = self ? selfPos : sampled.get(p.id);
 			if (pos) {
-				drawn.push({ id: p.id, x: pos.x, y: pos.y, name: p.name, color: p.color, self });
+				const effects = p.effects.map((e) => ({
+					kind: e.kind,
+					remainingMs: Math.max(0, e.endsAt - serverNow),
+					totalMs: EFFECT_TICKS[e.kind] * TICK_MS,
+				}));
+				drawn.push({ id: p.id, x: pos.x, y: pos.y, name: p.name, color: p.color, self, effects });
 			}
 		}
 
 		return {
 			players: drawn,
-			coin: latest?.coin ?? null,
+			coin: (latest && pickups.get(`coin:${latest.coin.id}`)) ?? null,
+			bigCoin: latest?.bigCoin
+				? this.timedPickup(pickups, `big:${latest.bigCoin.id}`, latest.bigCoin.expiresAt, serverNow)
+				: null,
+			item: latest?.item ? this.boardItem(pickups, latest.item, serverNow) : null,
 			selfId,
 			score: players.find((p) => p.id === selfId)?.score ?? 0,
 			rank: calculateRank(players, selfId ?? ''),
@@ -152,6 +169,26 @@ export class GameSession {
 				self: p.id === selfId,
 			})),
 		};
+	}
+
+	/** Interpolated position of a pickup plus its remaining lifetime, or null if not sampled. */
+	private timedPickup(
+		positions: Map<string, Vec>,
+		key: string,
+		expiresAt: number,
+		serverNow: number,
+	): { x: number; y: number; remainingMs: number } | null {
+		const pos = positions.get(key);
+		return pos ? { x: pos.x, y: pos.y, remainingMs: Math.max(0, expiresAt - serverNow) } : null;
+	}
+
+	private boardItem(
+		positions: Map<string, Vec>,
+		item: ItemState,
+		serverNow: number,
+	): FrameView['item'] {
+		const timed = this.timedPickup(positions, `item:${item.id}`, item.expiresAt, serverNow);
+		return timed && { ...timed, kind: item.kind };
 	}
 
 	/** After a reconnect, rejoin with the stored profile and token. */
@@ -171,7 +208,7 @@ export class GameSession {
 		this.buffer.push(snapshot, receivedAt);
 		const self = snapshot.players.find((p) => p.id === this.socket.id);
 		if (self) {
-			this.predictor.reconcile(self);
+			this.predictor.reconcile(self, snapshot.time);
 		}
 	}
 

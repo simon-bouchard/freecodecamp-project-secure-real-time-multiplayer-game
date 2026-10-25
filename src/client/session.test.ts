@@ -3,7 +3,12 @@ import type { AddressInfo } from 'node:net';
 import { Server } from 'socket.io';
 import { io } from 'socket.io-client';
 import { afterEach, expect, test } from 'vitest';
-import { PALETTE } from '../shared/constants.js';
+import {
+	BIG_COIN_LIFETIME_TICKS,
+	ITEM_LIFETIME_TICKS,
+	PALETTE,
+	TICK_MS,
+} from '../shared/constants.js';
 import { NO_INPUT } from '../shared/game.js';
 import type { InputState, JoinFailure, Snapshot } from '../shared/protocol.js';
 import { type GameServer, startServer } from '../server/server.js';
@@ -182,4 +187,33 @@ test('join gives up when the server never answers', async () => {
 	expect(session.joined).toBe(false);
 	socket.disconnect();
 	await silent.close();
+});
+
+test('view shows items, the big coin and own effects', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world });
+	const socket = newSocket();
+	const session = new GameSession(socket, () => NO_INPUT);
+	await connected(socket);
+	await session.join('Ann', PALETTE[0]!);
+	await waitFor(() => session.predictor.position !== null);
+	world.setPlayerPosition(socket.id!, { x: 300, y: 300 });
+	world.setCoinPosition({ x: 600, y: 440 });
+	world.setItem('magnet', { x: 100, y: 400 });
+	world.setBigCoin({ x: 500, y: 150 });
+	await waitFor(
+		() => session.buffer.latest()?.item !== null && session.buffer.latest()?.item !== undefined,
+	);
+	await new Promise((r) => setTimeout(r, 200));
+	let view = session.view(performance.now());
+	expect(view.item?.kind).toBe('magnet');
+	expect(view.item!.remainingMs).toBeGreaterThan(ITEM_LIFETIME_TICKS * TICK_MS - 1000);
+	expect(view.bigCoin!.remainingMs).toBeGreaterThan(BIG_COIN_LIFETIME_TICKS * TICK_MS - 1000);
+
+	world.setItem('speed', { x: 300, y: 300 });
+	await waitFor(() => (session.buffer.latest()?.players[0]?.effects.length ?? 0) > 0);
+	view = session.view(performance.now());
+	const self = view.players.find((p) => p.self)!;
+	expect(self.effects.map((e) => e.kind)).toEqual(['speed']);
+	expect(self.effects[0]!.totalMs).toBeCloseTo(5000, -2);
 });

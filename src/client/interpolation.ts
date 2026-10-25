@@ -44,6 +44,19 @@ export class SnapshotBuffer {
 
 	/** Player positions at server time `renderTime`, interpolated between surrounding snapshots. */
 	sample(renderTime: number): Map<string, Vec> {
+		return this.sampleEntities(renderTime, (s) =>
+			s.players.map((p) => ({ key: p.id, x: p.x, y: p.y })),
+		);
+	}
+
+	/**
+	 * Positions of any keyed entities at `renderTime`. Keys only in the newer snapshot appear at
+	 * their position; keys missing from it are dropped.
+	 */
+	sampleEntities(
+		renderTime: number,
+		select: (s: Snapshot) => { key: string; x: number; y: number }[],
+	): Map<string, Vec> {
 		const result = new Map<string, Vec>();
 		const first = this.entries[0]?.snapshot;
 		const last = this.entries.at(-1)?.snapshot;
@@ -54,18 +67,18 @@ export class SnapshotBuffer {
 		const nextIndex = this.entries.findIndex((e) => e.snapshot.time > renderTime);
 		if (renderTime <= first.time || nextIndex <= 0) {
 			const only = renderTime <= first.time ? first : last;
-			only.players.forEach((p) => result.set(p.id, { x: p.x, y: p.y }));
+			select(only).forEach((e) => result.set(e.key, { x: e.x, y: e.y }));
 			return result;
 		}
 
 		const a = this.entries[nextIndex - 1]!.snapshot;
 		const b = this.entries[nextIndex]!.snapshot;
 		const t = (renderTime - a.time) / (b.time - a.time);
-		const before = new Map(a.players.map((p) => [p.id, p]));
-		for (const p of b.players) {
-			const prev = before.get(p.id);
+		const before = new Map(select(a).map((e) => [e.key, e]));
+		for (const p of select(b)) {
+			const prev = before.get(p.key);
 			result.set(
-				p.id,
+				p.key,
 				prev
 					? { x: prev.x + (p.x - prev.x) * t, y: prev.y + (p.y - prev.y) * t }
 					: { x: p.x, y: p.y },

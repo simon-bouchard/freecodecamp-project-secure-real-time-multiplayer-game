@@ -1,5 +1,5 @@
 import { ARENA, CANVAS, COIN_RADIUS, PLAYER_RADIUS } from '../shared/constants.js';
-import type { CoinState, RoundState, Vec } from '../shared/protocol.js';
+import type { ItemKind, RoundState, Vec } from '../shared/protocol.js';
 import { formatClock, winnerText } from './format.js';
 
 /** A player as drawn this frame. */
@@ -10,6 +10,7 @@ export interface DrawnPlayer {
 	name: string;
 	color: string;
 	self: boolean;
+	effects: { kind: ItemKind; remainingMs: number; totalMs: number }[];
 }
 
 /** One scoreboard line. */
@@ -24,7 +25,9 @@ export interface ScoreRow {
 /** Everything needed to draw one frame. */
 export interface FrameView {
 	players: DrawnPlayer[];
-	coin: CoinState | null;
+	coin: Vec | null;
+	bigCoin: { x: number; y: number; remainingMs: number } | null;
+	item: { kind: ItemKind; x: number; y: number; remainingMs: number } | null;
 	selfId: string | null;
 	score: number;
 	rank: { rank: number; total: number };

@@ -1,6 +1,6 @@
-import { SNAP_DISTANCE, TICK_DT } from '../shared/constants.js';
-import { movePlayer } from '../shared/game.js';
-import type { InputMessage, InputState, PlayerState, Vec } from '../shared/protocol.js';
+import { SNAP_DISTANCE, TICK_DT, TICK_MS } from '../shared/constants.js';
+import { movePlayer, speedMultiplier } from '../shared/game.js';
+import type { InputMessage, InputState, ItemKind, PlayerState, Vec } from '../shared/protocol.js';
 
 /** Time constant for correction smoothing; about 90% of an error is gone after 100 ms. */
 const SMOOTHING_TAU_MS = 100 / Math.LN10;
@@ -12,6 +12,8 @@ export class Predictor {
 	private previous: Vec | null = null;
 	private nextSeq = 1;
 	private offset: Vec = { x: 0, y: 0 };
+	/** Ticks left on each effect as of the last snapshot. */
+	private remaining = new Map<ItemKind, number>();
 
 	/** Apply one tick of local input immediately; returns the message to send, or null. */
 	applyLocalInput(input: InputState): InputMessage | null {
@@ -19,9 +21,10 @@ export class Predictor {
 			return null;
 		}
 		const msg: InputMessage = { seq: this.nextSeq++, input: { ...input } };
+		const factor = this.factorAt(this.pending.length);
 		this.pending.push(msg);
 		this.previous = this.position;
-		this.position = movePlayer(this.position, msg.input, TICK_DT);
+		this.position = movePlayer(this.position, msg.input, TICK_DT, factor);
 		return msg;
 	}
 
@@ -30,13 +33,19 @@ export class Predictor {
 		this.previous = this.position;
 	}
 
-	/** Rebase on the server's state and replay inputs it has not applied yet. */
-	reconcile(server: PlayerState): void {
+	/**
+	 * Rebase on the server's state and replay inputs it has not applied yet. The server applies
+	 * one input per tick, so the i-th pending input only gets effects with more than i ticks left.
+	 */
+	reconcile(server: PlayerState, snapshotTime = 0): void {
+		this.remaining = new Map(
+			server.effects.map((e) => [e.kind, Math.round((e.endsAt - snapshotTime) / TICK_MS)]),
+		);
 		this.pending = this.pending.filter((m) => m.seq > server.lastSeq);
 		let pos: Vec = { x: server.x, y: server.y };
-		for (const msg of this.pending) {
-			pos = movePlayer(pos, msg.input, TICK_DT);
-		}
+		this.pending.forEach((msg, i) => {
+			pos = movePlayer(pos, msg.input, TICK_DT, this.factorAt(i));
+		});
 
 		if (this.position && this.previous) {
 			this.previous = {
@@ -77,8 +86,15 @@ export class Predictor {
 	reset(): void {
 		this.position = null;
 		this.previous = null;
+		this.remaining = new Map();
 		this.pending = [];
 		this.nextSeq = 1;
 		this.offset = { x: 0, y: 0 };
+	}
+
+	/** Speed factor for the input that will be the `index`-th unacknowledged one. */
+	private factorAt(index: number): number {
+		const active = [...this.remaining].filter(([, ticks]) => ticks > index).map(([kind]) => kind);
+		return speedMultiplier(active);
 	}
 }

@@ -65,3 +65,16 @@ test('clear empties the buffer', () => {
 	expect(buffer.latest()).toBeUndefined();
 	expect(buffer.sample(1050).size).toBe(0);
 });
+
+test('sampleEntities interpolates coins by key and does not glide across a new id', () => {
+	const buffer = new SnapshotBuffer();
+	const coins = (s: Snapshot) => [{ key: `coin:${s.coin.id}`, x: s.coin.x, y: s.coin.y }];
+	buffer.push({ ...snap(1000, []), coin: { id: 1, x: 0, y: 50 } }, 1000);
+	buffer.push({ ...snap(1100, []), coin: { id: 1, x: 100, y: 50 } }, 1100);
+	expect(buffer.sampleEntities(1050, coins).get('coin:1')).toEqual({ x: 50, y: 50 });
+
+	buffer.push({ ...snap(1200, []), coin: { id: 2, x: 400, y: 300 } }, 1200);
+	const sampled = buffer.sampleEntities(1150, coins);
+	expect(sampled.get('coin:2')).toEqual({ x: 400, y: 300 });
+	expect(sampled.has('coin:1')).toBe(false);
+});

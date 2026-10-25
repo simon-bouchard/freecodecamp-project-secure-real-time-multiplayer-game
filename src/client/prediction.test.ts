@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { TICK_MS } from '../shared/constants.js';
 import { NO_INPUT } from '../shared/game.js';
 import type { PlayerState } from '../shared/protocol.js';
 import { Predictor } from './prediction.js';
@@ -84,4 +85,35 @@ test('holdStill stops in-between drawing', () => {
 	p.applyLocalInput(RIGHT);
 	p.holdStill();
 	expect(p.displayPosition(0, 0.5).x).toBeCloseTo(110);
+});
+
+function withEffect(state: PlayerState, kind: 'speed' | 'slow', ticks: number, time: number) {
+	return { ...state, effects: [{ kind, endsAt: time + ticks * TICK_MS }] };
+}
+
+test('replay applies an effect only to inputs before it ends', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	p.applyLocalInput(RIGHT);
+	p.applyLocalInput(RIGHT);
+	p.applyLocalInput(RIGHT);
+	p.reconcile(withEffect(server(100, 0), 'speed', 2, 5000), 5000);
+	expect(p.position?.x).toBeCloseTo(100 + 15 + 15 + 10);
+});
+
+test('new inputs use the effects active for their position in the queue', () => {
+	const fast = new Predictor();
+	fast.reconcile(withEffect(server(100, 0), 'speed', 5, 0), 0);
+	fast.applyLocalInput(RIGHT);
+	expect(fast.position?.x).toBeCloseTo(115);
+
+	const slow = new Predictor();
+	slow.reconcile(withEffect(server(100, 0), 'slow', 5, 0), 0);
+	slow.applyLocalInput(RIGHT);
+	expect(slow.position?.x).toBeCloseTo(105);
+
+	const plain = new Predictor();
+	plain.reconcile(server(100, 0));
+	plain.applyLocalInput(RIGHT);
+	expect(plain.position?.x).toBeCloseTo(110);
 });
