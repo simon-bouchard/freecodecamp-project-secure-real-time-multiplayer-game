@@ -54,6 +54,25 @@ const steering = new PointerSteering(canvas, (event) =>
 );
 canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
+/** Two presses on the game this close together (ms) are a double tap: dash. */
+const DOUBLE_TAP_MS = 300;
+let lastPress = -Infinity;
+canvas.addEventListener('pointerdown', (event) => {
+	if (event.timeStamp - lastPress < DOUBLE_TAP_MS) {
+		session.requestDash();
+	}
+	lastPress = event.timeStamp;
+});
+window.addEventListener('keydown', (event) => {
+	const typing =
+		event.target instanceof HTMLElement && event.target.closest('input, select, button');
+	if (event.code !== 'Space' || event.repeat || typing) {
+		return;
+	}
+	event.preventDefault();
+	session.requestDash();
+});
+
 /** Held keys win; otherwise walk toward the touch target from where we predict we are. */
 function readMove(): Move {
 	const keys = keyboard.state;

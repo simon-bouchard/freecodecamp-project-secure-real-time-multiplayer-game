@@ -1,6 +1,13 @@
-import { SNAP_DISTANCE, TICK_DT, TICK_MS } from '../shared/constants.js';
-import { knockStep, movePlayer, speedMultiplier } from '../shared/game.js';
-import type { InputMessage, ItemKind, Move, PlayerState, Vec } from '../shared/protocol.js';
+import { DASH_COOLDOWN_TICKS, SNAP_DISTANCE, TICK_MS } from '../shared/constants.js';
+import { applyInput, knockStep, speedMultiplier } from '../shared/game.js';
+import type {
+	DashState,
+	InputMessage,
+	ItemKind,
+	Move,
+	PlayerState,
+	Vec,
+} from '../shared/protocol.js';
 
 /** Time constant for correction smoothing; about 90% of an error is gone after 100 ms. */
 const SMOOTHING_TAU_MS = 100 / Math.LN10;
@@ -16,6 +23,41 @@ export class Predictor {
 	private remaining = new Map<ItemKind, number>();
 	/** Knockback still to play out after the latest predicted step. */
 	private knock: Vec = { x: 0, y: 0 };
+	/** Dash still running after the latest predicted step. */
+	private dash: DashState | null = null;
+	/** Our last non-zero move direction: a dash while standing still goes this way. */
+	private facing: Vec = { x: 1, y: 0 };
+	private dashWanted = false;
+	/** Server time a dash is allowed again: from the server, and from our own last dash. */
+	private serverReadyAt = 0;
+	private localReadyAt = 0;
+
+	get dashing(): boolean {
+		return this.dash !== null;
+	}
+
+	/** True while a requested dash has not been sent yet. */
+	get dashPending(): boolean {
+		return this.dashWanted;
+	}
+
+	/** Server time when the next dash is allowed, as far as we know. */
+	get dashReadyAt(): number {
+		return Math.max(this.serverReadyAt, this.localReadyAt);
+	}
+
+	/**
+	 * Ask to dash with the next input; refused while dashing or cooling down, so we never predict
+	 * a dash the server will reject. `serverNow` is the estimated server time in ms.
+	 */
+	requestDash(serverNow: number): boolean {
+		if (!this.position || this.dash || this.dashWanted || serverNow < this.dashReadyAt) {
+			return false;
+		}
+		this.dashWanted = true;
+		this.localReadyAt = serverNow + DASH_COOLDOWN_TICKS * TICK_MS;
+		return true;
+	}
 
 	/** True while a bump's knockback is still moving us. */
 	get knocked(): boolean {
@@ -28,12 +70,23 @@ export class Predictor {
 			return null;
 		}
 		const msg: InputMessage = { seq: this.nextSeq++, move: { x: move.x, y: move.y } };
-		const factor = this.factorAt(this.pending.length);
+		if (this.dashWanted) {
+			msg.dash = true;
+			if (move.x === 0 && move.y === 0) {
+				msg.move = { ...this.facing };
+			}
+			this.dashWanted = false;
+		}
 		this.pending.push(msg);
 		this.previous = this.position;
-		const step = knockStep(movePlayer(this.position, msg.move, TICK_DT, factor), this.knock);
-		this.position = step.pos;
-		this.knock = step.knock;
+		const moved = this.step(this.position, this.dash, this.knock, msg, this.pending.length - 1);
+		this.position = moved.pos;
+		this.dash = moved.dash;
+		this.knock = moved.knock;
+		const length = Math.hypot(msg.move.x, msg.move.y);
+		if (length > 0) {
+			this.facing = { x: msg.move.x / length, y: msg.move.y / length };
+		}
 		return msg;
 	}
 
@@ -51,11 +104,14 @@ export class Predictor {
 			server.effects.map((e) => [e.kind, Math.round((e.endsAt - snapshotTime) / TICK_MS)]),
 		);
 		this.pending = this.pending.filter((m) => m.seq > server.lastSeq);
+		this.serverReadyAt = server.dashReadyAt;
 		let pos: Vec = { x: server.x, y: server.y };
+		let dash = server.dash;
 		let knock: Vec = { ...server.knock };
 		this.pending.forEach((msg, i) => {
-			({ pos, knock } = knockStep(movePlayer(pos, msg.move, TICK_DT, this.factorAt(i)), knock));
+			({ pos, dash, knock } = this.step(pos, dash, knock, msg, i));
 		});
+		this.dash = dash;
 		this.knock = knock;
 
 		if (this.position && this.previous) {
@@ -99,6 +155,11 @@ export class Predictor {
 		this.previous = null;
 		this.remaining = new Map();
 		this.knock = { x: 0, y: 0 };
+		this.dash = null;
+		this.dashWanted = false;
+		this.serverReadyAt = 0;
+		this.localReadyAt = 0;
+		this.facing = { x: 1, y: 0 };
 		this.pending = [];
 		this.nextSeq = 1;
 		this.offset = { x: 0, y: 0 };
@@ -107,6 +168,21 @@ export class Predictor {
 	/** Speed factor that will apply to the next local input (boosts and slows included). */
 	nextStepFactor(): number {
 		return this.factorAt(this.pending.length);
+	}
+
+	/** One input as the server applies it: the move or dash, then one knockback step. */
+	private step(
+		pos: Vec,
+		dash: DashState | null,
+		knock: Vec,
+		msg: InputMessage,
+		index: number,
+	): { pos: Vec; dash: DashState | null; knock: Vec } {
+		const factor = this.factorAt(index);
+		const start = msg.dash === true && dash === null;
+		const moved = applyInput(pos, msg.move, dash, start, factor, this.facing);
+		const knocked = knockStep(moved.pos, knock);
+		return { pos: knocked.pos, dash: moved.dash, knock: knocked.knock };
 	}
 
 	/** Speed factor for the input that will be the `index`-th unacknowledged one. */

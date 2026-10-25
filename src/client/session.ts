@@ -112,7 +112,8 @@ export class GameSession {
 		const move = this.readInput();
 		const moving = move.x !== 0 || move.y !== 0;
 		const playing = this.buffer.latest()?.round.phase === 'playing';
-		const idle = !moving && sameMove(move, this.lastSent) && !this.predictor.knocked;
+		const busy = this.predictor.knocked || this.predictor.dashing || this.predictor.dashPending;
+		const idle = !moving && sameMove(move, this.lastSent) && !busy;
 		if (!this.socket.connected || !this.isJoined || !playing || idle) {
 			this.predictor.holdStill();
 			return;
@@ -122,6 +123,15 @@ export class GameSession {
 			this.socket.emit('input', msg);
 			this.lastSent = msg.move;
 		}
+	}
+
+	/** Dash with the next tick's input if joined, playing and off cooldown; true if it will. */
+	requestDash(): boolean {
+		const playing = this.buffer.latest()?.round.phase === 'playing';
+		if (!this.isJoined || !playing) {
+			return false;
+		}
+		return this.predictor.requestDash(this.buffer.serverTimeAt(performance.now()));
 	}
 
 	/** What to draw at local time `now` (same clock as `performance.now()`). */

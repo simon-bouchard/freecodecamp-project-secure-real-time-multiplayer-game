@@ -177,3 +177,40 @@ test('knocked is false without knockback', () => {
 	p.reconcile(server(100, 0));
 	expect(p.knocked).toBe(false);
 });
+
+test('a predicted dash runs five inputs and the replay of an acked dash matches it', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	expect(p.requestDash(0)).toBe(true);
+	const first = p.applyLocalInput(RIGHT)!;
+	expect(first.dash).toBe(true);
+	expect(p.position!.x).toBeCloseTo(130);
+	expect(p.requestDash(0)).toBe(false);
+	for (let i = 0; i < 4; i++) p.applyLocalInput(NO_MOVE);
+	expect(p.position!.x).toBeCloseTo(250);
+	expect(p.dashing).toBe(false);
+
+	p.reconcile({ ...server(130, 1), dash: { left: 4, dir: RIGHT }, dashReadyAt: 3000 });
+	expect(p.position!.x).toBeCloseTo(250);
+});
+
+test('the dash cooldown is respected locally and from the server', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	p.requestDash(0);
+	for (let i = 0; i < 5; i++) p.applyLocalInput(NO_MOVE);
+	expect(p.requestDash(2900)).toBe(false);
+	p.reconcile({ ...server(250, 5), dashReadyAt: 5000 });
+	expect(p.requestDash(4000)).toBe(false);
+	expect(p.requestDash(5000)).toBe(true);
+});
+
+test('a dash while standing still goes the way we last moved', () => {
+	const p = new Predictor();
+	p.reconcile(server(300, 0));
+	p.applyLocalInput({ x: 0, y: 1 });
+	p.requestDash(0);
+	const msg = p.applyLocalInput(NO_MOVE)!;
+	expect(msg.move).toEqual({ x: 0, y: 1 });
+	expect(p.position!.y).toBeCloseTo(100 + 10 + 30);
+});

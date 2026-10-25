@@ -282,3 +282,25 @@ test('a shoved player keeps sending still inputs until the knockback is gone', a
 	session.tick();
 	expect(sent).toEqual([NO_MOVE, NO_MOVE]);
 });
+
+test('a dash while standing still is sent once and inputs keep flowing until it ends', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world, tickMs: 1000 });
+	const socket = newSocket();
+	const session = new GameSession(socket, () => NO_MOVE);
+	await connected(socket);
+	await session.join('Ann', PALETTE[0]!);
+	await waitFor(() => session.predictor.position !== null);
+	const sent: { move: Move; dash?: true }[] = [];
+	const emit = socket.emit.bind(socket);
+	socket.emit = ((event: string, ...args: unknown[]) => {
+		if (event === 'input') sent.push(args[0] as { move: Move; dash?: true });
+		return (emit as (...a: unknown[]) => GameSocket)(event, ...args);
+	}) as typeof socket.emit;
+
+	expect(session.requestDash()).toBe(true);
+	for (let i = 0; i < 7; i++) session.tick();
+	expect(sent.map((m) => m.dash ?? false)).toEqual([true, false, false, false, false]);
+	expect(sent[0]!.move).toEqual({ x: 1, y: 0 });
+	expect(session.requestDash()).toBe(false);
+});
