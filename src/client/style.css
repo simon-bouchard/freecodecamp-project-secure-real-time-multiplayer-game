@@ -200,6 +200,7 @@ canvas {
 	.layout {
 		flex-direction: column;
 		align-items: center;
+		justify-content: flex-start;
 	}
 
 	.scoreboard {
@@ -552,4 +553,21 @@ canvas {
 	user-select: none;
 	-webkit-user-select: none;
 	-webkit-touch-callout: none;
+}
+
+/* Short screens (phones in landscape): fit the whole arena in the screen height. */
+@media (orientation: landscape) and (max-height: 560px) {
+	.layout {
+		padding: 8px 16px;
+	}
+
+	.stage {
+		max-width: min(640px, calc((100dvh - 16px) * 4 / 3));
+	}
+}
+
+/* The join panel scrolls instead of spilling off very short screens. */
+.join-panel {
+	max-height: calc(100dvh - 16px);
+	overflow-y: auto;
 }

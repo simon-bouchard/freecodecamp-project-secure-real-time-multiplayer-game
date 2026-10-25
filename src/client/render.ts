@@ -37,6 +37,8 @@ export interface FrameView {
 	highlights: Map<string, Period>;
 	/** Where the player is steering by touch, if they are. */
 	touchTarget: Vec | null;
+	/** Text enlargement for small displays (1 at full size). */
+	textScale: number;
 }
 
 /** Faint ring at the touch target, the same in every theme. */
@@ -71,7 +73,7 @@ export function drawFrame(
 	}
 	const ordered = [...view.players].sort((a, b) => Number(a.self) - Number(b.self));
 	for (const player of ordered) {
-		theme.drawPlayer(ctx, player, now);
+		theme.drawPlayer(ctx, player, now, view.textScale);
 	}
 	if (view.touchTarget) {
 		drawTouchTarget(ctx, view.touchTarget);

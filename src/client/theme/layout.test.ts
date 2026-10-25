@@ -32,3 +32,17 @@ test('labels near a side wall shift inward so they are not cut off', () => {
 	const right = labelX(ARENA.x + ARENA.width - 20, 100);
 	expect(right + 50).toBeLessThanOrEqual(ARENA.x + ARENA.width);
 });
+
+test('larger text pushes the effect tags further above the name', () => {
+	const normal = labelLayout(300);
+	const large = labelLayout(300, 1.6);
+	expect(large.nameY).toBe(normal.nameY);
+	expect(normal.nameY - large.tagsY).toBeGreaterThan(normal.nameY - normal.tagsY);
+});
+
+test('with larger text, labels still flip below in time to clear the header', () => {
+	for (let y = ARENA.y + 1 + PLAYER_RADIUS; y < 220; y++) {
+		const { tagsY } = labelLayout(y, 1.6);
+		expect(tagsY - 8 * 1.6).toBeGreaterThanOrEqual(ARENA.y);
+	}
+});

@@ -10,7 +10,7 @@ import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
 import type { DrawnPlayer, FrameView } from '../../render.js';
 import { labelLayout, labelX } from '../layout.js';
-import { drawResultRows, roundStatus } from '../shared.js';
+import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import { SmokeTrail } from '../trail.js';
 import type { Theme } from '../types.js';
 import { wavyRingPath } from './geometry.js';
@@ -107,22 +107,16 @@ function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillStyle = COLORS.header;
 	ctx.fillRect(0, 0, CANVAS.width, 46);
 	ctx.fillStyle = COLORS.text;
-
-	ctx.font = `600 16px ${FONT}`;
-	ctx.textAlign = 'left';
-	ctx.fillText(roundStatus(view), 14, 30);
-
-	ctx.font = `700 18px ${FONT}`;
-	ctx.textAlign = 'center';
-	ctx.letterSpacing = '3px';
-	ctx.fillText('COIN RACE', CANVAS.width / 2, 31);
-	ctx.letterSpacing = '0px';
-
 	const { rank, total } = view.rank;
-	const status = view.selfId ? `${view.score} · ${ordinal(rank)}/${total}` : 'Spectating';
-	ctx.font = `600 15px ${FONT}`;
-	ctx.textAlign = 'right';
-	ctx.fillText(status, CANVAS.width - 14, 30);
+	drawHeaderTexts(ctx, view.textScale, 24, {
+		left: { text: roundStatus(view), size: 16, font: (px) => `600 ${px}px ${FONT}` },
+		title: { text: 'COIN RACE', size: 18, font: (px) => `700 ${px}px ${FONT}`, letterSpacing: 3 },
+		right: {
+			text: view.selfId ? `${view.score} · ${ordinal(rank)}/${total}` : 'Spectating',
+			size: 15,
+			font: (px) => `600 ${px}px ${FONT}`,
+		},
+	});
 }
 
 function drawPickup(ctx: CanvasRenderingContext2D, pos: Vec): void {
@@ -153,7 +147,12 @@ function drawItem(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['it
 	}
 }
 
-function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer, now: number): void {
+function drawPlayer(
+	ctx: CanvasRenderingContext2D,
+	player: DrawnPlayer,
+	now: number,
+	textScale: number,
+): void {
 	const boosted = player.effects.some((e) => e.kind === 'speed');
 	const slowed = player.effects.some((e) => e.kind === 'slow');
 
@@ -190,8 +189,8 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer, now: num
 		ctx.stroke();
 	}
 
-	const { nameY, tagsY } = labelLayout(player.y);
-	ctx.font = `600 12px ${FONT}`;
+	const { nameY, tagsY } = labelLayout(player.y, textScale);
+	ctx.font = `600 ${Math.round(12 * textScale)}px ${FONT}`;
 	ctx.textAlign = 'center';
 	ctx.fillStyle = slowed ? COLORS.muted : COLORS.text;
 	ctx.fillText(player.name, labelX(player.x, ctx.measureText(player.name).width + 4), nameY);
@@ -260,6 +259,7 @@ export const flatTheme: Theme = {
 	bodyClass: 'theme-flat',
 	joinNameLabel: 'Name',
 	joinHint: 'WASD or arrow keys. Grab the gold!',
+	joinTouchHint: 'Touch where you want to go. Grab the gold!',
 	beginFrame,
 	drawArena,
 	drawHeader,

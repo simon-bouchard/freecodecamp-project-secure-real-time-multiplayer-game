@@ -19,3 +19,11 @@ export function fitCanvasToScreen(canvas: HTMLCanvasElement, ctx: CanvasRenderin
 	}
 	ctx.setTransform(size.scale, 0, 0, size.scale, 0, 0);
 }
+
+/** How much to enlarge canvas text when the canvas is shown narrower than its design width. */
+export function textScale(displayWidth: number): number {
+	if (displayWidth <= 0) {
+		return 1;
+	}
+	return Math.min(1.6, Math.max(1, CANVAS.width / displayWidth));
+}

@@ -37,6 +37,9 @@ busy.
   (plain discs on dark slate) from the Theme menu on the join screen or under the scoreboard.
   It only changes your own screen and is remembered in your browser.
 
+- **Controls**: arrow keys or WASD on a keyboard. On a phone or tablet, touch and hold where
+  you want to go and your player walks there; drag to steer. Mouse click-and-hold works too.
+  Phones get a stacked layout in portrait and an arena sized to the screen in landscape.
 - **Join panel** with a name (1-12 characters) and one of 12 colours. Each colour can be used
   by one player, so a game holds up to 12 players. Your last name and colour are remembered.
   Until you join you watch the game as a spectator.
@@ -58,7 +61,7 @@ busy.
 | Shared rules (movement, walls, coin spawn, rank, input validation) | `src/shared/game.ts`, `src/shared/constants.ts`                |
 | Wire format and typed socket events                                | `src/shared/protocol.ts`                                       |
 | Authoritative simulation, 30 ticks per second                      | `src/server/world.ts`, `src/server/server.ts`                  |
-| Keyboard input                                                     | `src/client/input.ts`                                          |
+| Keyboard and touch-to-move input                                   | `src/client/input.ts`, `src/client/steering.ts`                |
 | Client-side prediction and reconciliation                          | `src/client/prediction.ts`                                     |
 | Snapshot interpolation of other players                            | `src/client/interpolation.ts`                                  |
 | Fixed 30 Hz client ticks, sending input, reconnects                | `src/client/session.ts`, `src/client/fixed-step.ts`            |
@@ -68,8 +71,9 @@ busy.
 | Drawing order and frame view                                       | `src/client/render.ts`, wired together in `src/client/main.ts` |
 | Visual themes (add one: implement `Theme`, register it, add CSS)   | `src/client/theme/`, ninja theme in `src/client/theme/ninja/`  |
 
-1. **Input.** Each client tick (30 per second) while a key is held, the client sends its key
-   state with an increasing sequence number. It never sends a position or score.
+1. **Input.** Each client tick (30 per second) while moving, the client sends a direction
+   (length 0 to 1, from the keys or toward the touched spot) with an increasing sequence
+   number. It never sends a position or score; the server clamps the length to 1.
 2. **Server tick.** The server applies each player's queued inputs in order, moves them with
    the shared movement code, keeps them inside the walls and checks the coin. Only the
    server awards points, so a coin can only be collected once. A credit system limits each

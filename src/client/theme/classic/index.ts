@@ -9,7 +9,7 @@ import {
 import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, winnerText } from '../../format.js';
 import type { DrawnPlayer, FrameView } from '../../render.js';
-import { drawResultRows, roundStatus } from '../shared.js';
+import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
 
 const COLORS = {
@@ -124,7 +124,12 @@ function drawEffects(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
 	}
 }
 
-function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
+function drawPlayer(
+	ctx: CanvasRenderingContext2D,
+	player: DrawnPlayer,
+	_now: number,
+	textScale: number,
+): void {
 	drawSmileyFace(ctx, player, player.self ? COLORS.self : COLORS.other);
 	if (player.effects.some((e) => e.kind === 'slow')) {
 		ctx.fillStyle = COLORS.slowTint;
@@ -133,26 +138,31 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
 		ctx.fill();
 	}
 	drawEffects(ctx, player);
-	ctx.font = '12px sans-serif';
+	ctx.font = `${Math.round(12 * textScale)}px sans-serif`;
 	ctx.textAlign = 'center';
 	ctx.fillStyle = COLORS.text;
 	ctx.fillText(player.name, player.x, player.y - PLAYER_RADIUS - 6);
 }
 
 function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
-	const padding = 10;
-	const baseline = 32;
-	ctx.font = '18px monospace';
 	ctx.fillStyle = COLORS.text;
-
-	ctx.textAlign = 'left';
-	ctx.fillText(roundStatus(view), padding, baseline);
-	ctx.textAlign = 'center';
-	ctx.fillText('Coin Race', CANVAS.width / 2, baseline);
-	ctx.textAlign = 'right';
 	const { rank, total } = view.rank;
-	const status = view.selfId ? `Score: ${view.score}  Rank: ${rank}/${total}` : 'Spectating';
-	ctx.fillText(status, CANVAS.width - padding, baseline);
+	const mono = (px: number) => `${px}px monospace`;
+	drawHeaderTexts(
+		ctx,
+		view.textScale,
+		26,
+		{
+			left: { text: roundStatus(view), size: 18, font: mono },
+			title: { text: 'Coin Race', size: 18, font: mono },
+			right: {
+				text: view.selfId ? `Score: ${view.score}  Rank: ${rank}/${total}` : 'Spectating',
+				size: 18,
+				font: mono,
+			},
+		},
+		10,
+	);
 }
 
 function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
@@ -203,6 +213,7 @@ export const classicTheme: Theme = {
 	bodyClass: 'theme-classic',
 	joinNameLabel: 'Name',
 	joinHint: 'Move with WASD or the arrow keys and grab the coins.',
+	joinTouchHint: 'Touch where you want to go and grab the coins.',
 	drawArena,
 	drawHeader,
 	drawPickup: drawCoin,

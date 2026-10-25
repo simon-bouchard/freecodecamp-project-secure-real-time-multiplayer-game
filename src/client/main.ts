@@ -3,7 +3,7 @@ import { PLAYER_SPEED, TICK_DT } from '../shared/constants.js';
 import { inputToMove } from '../shared/game.js';
 import type { Move } from '../shared/protocol.js';
 import type { JoinFailure } from '../shared/protocol.js';
-import { fitCanvasToScreen } from './canvas.js';
+import { fitCanvasToScreen, textScale } from './canvas.js';
 import { Keyboard } from './input.js';
 import { PointerSteering, moveToward, toGameCoords } from './steering.js';
 import { drawFrame } from './render.js';
@@ -42,6 +42,8 @@ const storage = (() => {
 })();
 
 const socket: GameSocket = io({ auth: { playerKey: loadOrCreatePlayerKey(storage) } });
+/** Phones and tablets: show touch wording instead of keyboard hints. */
+const touchScreen = window.matchMedia('(pointer: coarse)').matches;
 const keyboard = new Keyboard(window);
 const steering = new PointerSteering(canvas, (event) =>
 	toGameCoords(event.clientX, event.clientY, canvas.getBoundingClientRect()),
@@ -95,7 +97,9 @@ function applyTheme(id: ThemeId): void {
 	document.body.classList.remove(...Object.values(THEMES).map((t) => t.bodyClass));
 	document.body.classList.add(theme.bodyClass);
 	document.getElementById('join-name-label')!.textContent = theme.joinNameLabel;
-	document.getElementById('join-hint')!.textContent = theme.joinHint;
+	document.getElementById('join-hint')!.textContent = touchScreen
+		? theme.joinTouchHint
+		: theme.joinHint;
 	for (const select of themeSelects) {
 		select.value = id;
 	}
@@ -122,7 +126,9 @@ panel.show();
 function frame(now: number): void {
 	session.update(now);
 	const view = session.view(now);
-	drawFrame(ctx, { ...view, touchTarget: session.joined ? steering.target : null }, theme, now);
+	const touchTarget = session.joined ? steering.target : null;
+	const scale = textScale(canvas.getBoundingClientRect().width);
+	drawFrame(ctx, { ...view, touchTarget, textScale: scale }, theme, now);
 	scoreboard.update(view.scoreboard);
 	bestRuns.update(session.leaderboard, Date.now());
 	if (panel.visible) {

@@ -12,6 +12,8 @@ export interface Theme {
 	bodyClass: string;
 	joinNameLabel: string;
 	joinHint: string;
+	/** Join hint shown on touch screens instead of the keyboard one. */
+	joinTouchHint: string;
 	/** Called once per frame before drawing, for themes that keep per-frame state. */
 	beginFrame?(view: FrameView, now: number): void;
 	/** Page background, floor and walls. */
@@ -21,6 +23,11 @@ export interface Theme {
 	drawPickup(ctx: CanvasRenderingContext2D, pos: Vec): void;
 	drawBigPickup(ctx: CanvasRenderingContext2D, big: NonNullable<FrameView['bigCoin']>): void;
 	drawItem(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['item']>): void;
-	drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer, now: number): void;
+	drawPlayer(
+		ctx: CanvasRenderingContext2D,
+		player: DrawnPlayer,
+		now: number,
+		textScale: number,
+	): void;
 	drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void;
 }

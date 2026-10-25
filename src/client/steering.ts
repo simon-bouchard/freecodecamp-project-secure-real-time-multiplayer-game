@@ -58,7 +58,11 @@ export class PointerSteering {
 		event.preventDefault();
 		this.pointerId = event.pointerId;
 		this.current = this.toGame(event);
-		(this.surface as Partial<Element>).setPointerCapture?.(event.pointerId);
+		try {
+			(this.surface as Partial<Element>).setPointerCapture?.(event.pointerId);
+		} catch {
+			// Capture is a nicety (keeps steering when the finger leaves the canvas); go on without it.
+		}
 	}
 
 	private onMove(event: PointerEvent): void {

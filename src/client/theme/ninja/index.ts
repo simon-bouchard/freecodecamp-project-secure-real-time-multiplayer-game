@@ -9,7 +9,7 @@ import {
 import type { Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
 import type { DrawnPlayer, FrameView } from '../../render.js';
-import { drawResultRows, roundStatus } from '../shared.js';
+import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
 import {
 	TAG_COLORS,
@@ -144,21 +144,22 @@ function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.stroke();
 
 	ctx.fillStyle = COLORS.cream;
-	ctx.font = 'bold 17px system-ui, sans-serif';
-	ctx.textAlign = 'left';
-	ctx.fillText(roundStatus(view), 14, 30);
-
-	ctx.font = 'bold 21px Georgia, "Times New Roman", serif';
-	ctx.textAlign = 'center';
-	ctx.letterSpacing = '2px';
-	ctx.fillText('COIN RACE', CANVAS.width / 2, 31);
-	ctx.letterSpacing = '0px';
-
 	const { rank, total } = view.rank;
-	const status = view.selfId ? `Score ${view.score} · ${ordinal(rank)}/${total}` : 'Spectating';
-	ctx.font = 'bold 15px system-ui, sans-serif';
-	ctx.textAlign = 'right';
-	ctx.fillText(status, CANVAS.width - 14, 30);
+	const sans = (px: number) => `bold ${px}px system-ui, sans-serif`;
+	drawHeaderTexts(ctx, view.textScale, 24, {
+		left: { text: roundStatus(view), size: 17, font: sans },
+		title: {
+			text: 'COIN RACE',
+			size: 21,
+			font: (px) => `bold ${px}px Georgia, "Times New Roman", serif`,
+			letterSpacing: 2,
+		},
+		right: {
+			text: view.selfId ? `Score ${view.score} · ${ordinal(rank)}/${total}` : 'Spectating',
+			size: 15,
+			font: sans,
+		},
+	});
 }
 
 function drawNarutomaki(ctx: CanvasRenderingContext2D, pos: Vec): void {
@@ -233,7 +234,12 @@ function drawNinja(ctx: CanvasRenderingContext2D, { x, y }: Vec, color: string):
 	ctx.stroke();
 }
 
-function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer, now: number): void {
+function drawPlayer(
+	ctx: CanvasRenderingContext2D,
+	player: DrawnPlayer,
+	now: number,
+	textScale: number,
+): void {
 	const boosted = player.effects.some((e) => e.kind === 'speed');
 	const slowed = player.effects.some((e) => e.kind === 'slow');
 
@@ -267,8 +273,8 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer, now: num
 		ctx.stroke();
 	}
 
-	const { nameY, tagsY } = labelLayout(player.y);
-	ctx.font = 'bold 12px system-ui, sans-serif';
+	const { nameY, tagsY } = labelLayout(player.y, textScale);
+	ctx.font = `bold ${Math.round(12 * textScale)}px system-ui, sans-serif`;
 	ctx.textAlign = 'center';
 	ctx.lineJoin = 'round';
 	ctx.strokeStyle = COLORS.nameHalo;
@@ -337,6 +343,7 @@ export const ninjaTheme: Theme = {
 	bodyClass: 'theme-ninja',
 	joinNameLabel: 'Ninja name',
 	joinHint: 'WASD or arrow keys. Grab the narutomaki!',
+	joinTouchHint: 'Touch where you want to go. Grab the narutomaki!',
 	beginFrame,
 	drawArena,
 	drawHeader,
