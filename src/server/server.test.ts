@@ -8,6 +8,7 @@ import { NO_INPUT } from '../shared/game.js';
 import type {
 	ClientToServerEvents,
 	JoinResult,
+	LeaderboardView,
 	ServerToClientEvents,
 	Snapshot,
 } from '../shared/protocol.js';
@@ -226,4 +227,52 @@ test('the player key from the connection reaches round results; malformed keys a
 			{ name: 'Bogus', key: null },
 		]),
 	);
+});
+
+test('each player gets their own leaderboard on connect and after a round', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world });
+	const keys = [crypto.randomUUID(), crypto.randomUUID()];
+	const [a, b] = keys.map(
+		(playerKey) =>
+			io(`http://localhost:${server!.port}`, {
+				transports: ['websocket'],
+				auth: { playerKey },
+			}) as Client,
+	);
+	clients.push(a!, b!);
+	const views = new Map<Client, LeaderboardView[]>([
+		[a!, []],
+		[b!, []],
+	]);
+	for (const c of [a!, b!]) c.on('leaderboard', (v) => views.get(c)!.push(v));
+	await Promise.all([a!, b!].map((c) => new Promise((r) => c.on('connect', () => r(null)))));
+	await join(a!, 'Ann', PALETTE[0]!);
+	await join(b!, 'Bob', PALETTE[1]!);
+	await new Promise((r) => setTimeout(r, 50));
+	expect(views.get(a!)![0]!.boards.all.everyone).toEqual([]);
+
+	world.setScore(a!.id!, 3);
+	world.setScore(b!.id!, 5);
+	while (world.phase !== 'results') world.step();
+	await new Promise((r) => setTimeout(r, 100));
+
+	const viewA = views.get(a!)!.at(-1)!;
+	const viewB = views.get(b!)!.at(-1)!;
+	expect(viewA.boards.today.everyone).toEqual([
+		{ name: 'Bob', score: 5, self: false },
+		{ name: 'Ann', score: 3, self: true },
+	]);
+	expect(viewA.boards.today.mine.map((r) => r.name)).toEqual(['Ann']);
+	expect(viewB.boards.today.mine.map((r) => r.name)).toEqual(['Bob']);
+	expect(viewA.highlights).toEqual(expect.arrayContaining([{ playerId: b!.id, period: 'all' }]));
+	for (const view of [viewA, viewB]) {
+		for (const key of keys) expect(JSON.stringify(view)).not.toContain(key);
+	}
+});
+
+test('closing the server twice is harmless', async () => {
+	const s = await startServer({ port: 0 });
+	await s.close();
+	await expect(s.close()).resolves.toBeUndefined();
 });

@@ -97,8 +97,35 @@ export type JoinFailure = 'invalid' | 'unknown-color' | 'color-taken' | 'full' |
 
 export type JoinResult = { ok: true; token: string } | { ok: false; reason: JoinFailure };
 
+/** One row of an "Everyone" board; `self` marks the viewer's own entry. */
+export interface LeaderboardRow {
+	name: string;
+	score: number;
+	self: boolean;
+}
+
+/** One of the viewer's own runs. */
+export interface MyRun {
+	name: string;
+	score: number;
+	finishedAt: number;
+}
+
+export interface PeriodBoard {
+	everyone: LeaderboardRow[];
+	mine: MyRun[];
+	myRank: number | null;
+}
+
+/** Leaderboards as seen by one client, plus who just set a new best (by in-game id). */
+export interface LeaderboardView {
+	boards: Record<Period, PeriodBoard>;
+	highlights: { playerId: string; period: Period }[];
+}
+
 export interface ServerToClientEvents {
 	snapshot: (snapshot: Snapshot) => void;
+	leaderboard: (view: LeaderboardView) => void;
 }
 
 export interface ClientToServerEvents {

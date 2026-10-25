@@ -98,13 +98,22 @@ export class World {
 	private itemIds = 0;
 	/** Boost kinds still to deal before reshuffling, so all four appear before any repeat. */
 	private itemBag: ItemKind[] = [];
+	private readonly roundEndListeners: ((results: RoundResult[]) => void)[] = [];
 
 	constructor(
 		private readonly rng: () => number = Math.random,
 		private readonly newToken: () => string = randomUUID,
-		private readonly options: WorldOptions = {},
+		options: WorldOptions = {},
 	) {
+		if (options.onRoundEnd) {
+			this.roundEndListeners.push(options.onRoundEnd);
+		}
 		this.coin = { id: 1, ...pickCoinSpawn([], rng) };
+	}
+
+	/** Also call `listener` whenever a round ends. */
+	addRoundEndListener(listener: (results: RoundResult[]) => void): void {
+		this.roundEndListeners.push(listener);
 	}
 
 	get phase(): RoundPhase {
@@ -524,14 +533,13 @@ export class World {
 		this.roundPhase = 'results';
 		this.ticksLeft = RESULTS_TICKS;
 		this.clearExtras();
-		this.options.onRoundEnd?.(
-			[...this.players.values()].map(({ state, key }) => ({
-				id: state.id,
-				key,
-				name: state.name,
-				score: state.score,
-			})),
-		);
+		const results = [...this.players.values()].map(({ state, key }) => ({
+			id: state.id,
+			key,
+			name: state.name,
+			score: state.score,
+		}));
+		this.roundEndListeners.forEach((listener) => listener(results));
 	}
 
 	private findByToken(token: string): PlayerEntry | undefined {
