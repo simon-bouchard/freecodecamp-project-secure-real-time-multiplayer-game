@@ -1,20 +1,22 @@
 import type { GameEvent, LeaderboardView, RoundPhase, Snapshot } from '../../shared/protocol.js';
 
 /** Every moment the game can play a sound for; each theme maps these to its own sounds. */
-export type SoundCue =
-	| 'coin'
-	| 'ramen'
-	| 'speed'
-	| 'magnet'
-	| 'double'
-	| 'slowGrab'
-	| 'slowed'
-	| 'roundStart'
-	| 'tick'
-	| 'lastTick'
-	| 'roundOver'
-	| 'win'
-	| 'personalBest';
+export const SOUND_CUES = [
+	'coin',
+	'ramen',
+	'speed',
+	'magnet',
+	'double',
+	'slowGrab',
+	'slowed',
+	'roundStart',
+	'tick',
+	'lastTick',
+	'roundOver',
+	'win',
+	'personalBest',
+] as const;
+export type SoundCue = (typeof SOUND_CUES)[number];
 
 /** The countdown ticks during the last this-many seconds of a round. */
 const COUNTDOWN_SECONDS = 5;

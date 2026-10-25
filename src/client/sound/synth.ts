@@ -285,6 +285,59 @@ export class Synth {
 		air.stop(end + 0.05);
 	}
 
+	/** A soft sine blip with a tiny pitch lift. */
+	blip(
+		freq: number,
+		t: number,
+		{ dur = 0.12, gain = 0.3, to }: { dur?: number; gain?: number; to?: number } = {},
+	): void {
+		this.tone(freq, t, { dur, gain, attack: 0.004, to: to ?? freq * 1.06, glide: 0.05 });
+	}
+
+	/** Marimba: a woody fundamental plus its quick upper partials. */
+	marimba(freq: number, t: number, { gain = 0.35, dur = 0.5 } = {}): void {
+		this.tone(freq, t, { dur, gain, attack: 0.002 });
+		this.tone(freq * 3.93, t, { dur: dur * 0.25, gain: gain * 0.25, attack: 0.001 });
+		this.tone(freq * 9.2, t, { dur: dur * 0.08, gain: gain * 0.1, attack: 0.001 });
+	}
+
+	/** Glassy chime: a clear tone with one bright partial. */
+	glass(freq: number, t: number, { gain = 0.15, dur = 0.8 } = {}): void {
+		this.tone(freq, t, { dur, gain, attack: 0.003 });
+		this.tone(freq * 2.76, t, { dur: dur * 0.4, gain: gain * 0.35, attack: 0.002 });
+	}
+
+	/**
+	 * One continuous tone under a single envelope whose pitch steps through `notes`
+	 * ([frequency, seconds after t]), sliding into each over `slide` seconds.
+	 */
+	stepTone(
+		t: number,
+		notes: readonly (readonly [number, number])[],
+		{ dur = 0.17, gain = 0.28, slide = 0, attack = 0.004 } = {},
+	): void {
+		const o = this.ctx.createOscillator();
+		let prev = notes[0]![0];
+		o.frequency.setValueAtTime(prev, t);
+		for (const [freq, at] of notes.slice(1)) {
+			if (slide > 0) {
+				o.frequency.setValueAtTime(prev, t + at - slide);
+				o.frequency.exponentialRampToValueAtTime(freq, t + at);
+			} else {
+				o.frequency.setValueAtTime(freq, t + at);
+			}
+			prev = freq;
+		}
+		const g = this.ctx.createGain();
+		g.gain.setValueAtTime(0.0001, t);
+		g.gain.exponentialRampToValueAtTime(gain, t + attack);
+		g.gain.setValueAtTime(gain, t + notes.at(-1)![1]);
+		g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+		o.connect(g).connect(this.master);
+		o.start(t);
+		o.stop(t + dur + 0.05);
+	}
+
 	/** A puff of smoke with a dropping thump. */
 	poof(t: number, gain = 0.6): void {
 		this.noise(t, { type: 'lowpass', freq: 3000, to: 200, q: 0.5, gain, dur: 0.4, attack: 0.01 });

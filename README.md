@@ -37,8 +37,9 @@ busy.
   (plain discs on dark slate) from the Theme menu on the join screen or under the scoreboard.
   It only changes your own screen and is remembered in your browser.
 
-- **Sounds** (Ninja theme): wood, koto, shamisen, shakuhachi, taiko and bells, all generated in
-  the browser with Web Audio, no audio files. You hear your own pickups, a slow that hits you,
+- **Sounds** (Ninja and Flat themes): Ninja uses wood, koto, shamisen, shakuhachi, taiko and
+  bells; Flat uses clean blips, marimba and glass chimes. All generated in the browser with Web
+  Audio, no audio files. You hear your own pickups, a slow that hits you,
   the round start, the last 5 seconds, the round end and new personal bests. The server lists
   each tick's pickups in the snapshot, so sounds follow what really happened. Toggle with the
   Sound button next to the Theme menu.

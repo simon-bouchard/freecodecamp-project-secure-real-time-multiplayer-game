@@ -14,6 +14,7 @@ import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import { SmokeTrail } from '../trail.js';
 import type { Theme } from '../types.js';
 import { wavyRingPath } from './geometry.js';
+import { flatSounds } from '../../sound/flat.js';
 
 const COLORS = {
 	page: '#20242c',
@@ -260,6 +261,7 @@ export const flatTheme: Theme = {
 	joinNameLabel: 'Name',
 	joinHint: 'WASD or arrow keys. Grab the gold!',
 	joinTouchHint: 'Touch where you want to go. Grab the gold!',
+	sounds: flatSounds,
 	beginFrame,
 	drawArena,
 	drawHeader,
