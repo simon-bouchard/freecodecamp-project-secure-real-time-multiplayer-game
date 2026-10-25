@@ -4,6 +4,7 @@ import {
 	NO_INPUT,
 	calculateRank,
 	circlesOverlap,
+	isPlayerKey,
 	isValidInputMessage,
 	isValidJoinRequest,
 	movePlayer,
@@ -213,5 +214,24 @@ describe('boost maths', () => {
 		const b = innerBounds(COIN_RADIUS);
 		const p = pullToward({ x: 20, y: 100 }, { x: -50, y: 100 }, 100, COIN_RADIUS);
 		expect(p.x).toBe(b.minX);
+	});
+});
+
+describe('isPlayerKey', () => {
+	test('accepts a random UUID', () => {
+		expect(isPlayerKey('3f2b8c1e-9d4a-4e6b-8a2f-1c3d5e7f9a0b')).toBe(true);
+		expect(isPlayerKey(crypto.randomUUID())).toBe(true);
+	});
+
+	test.each([
+		'',
+		'abc',
+		'3f2b8c1e-9d4a-4e6b-8a2f-1c3d5e7f9a0b0',
+		'zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz',
+		42,
+		null,
+		undefined,
+	])('rejects %j', (value) => {
+		expect(isPlayerKey(value)).toBe(false);
 	});
 });

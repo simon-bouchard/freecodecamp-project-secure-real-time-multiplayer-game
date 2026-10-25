@@ -155,3 +155,10 @@ export function sortScoreboard<T extends { id: string; name: string; score: numb
 		(a, b) => b.score - a.score || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
 	);
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A browser's secret leaderboard key: a random UUID string. */
+export function isPlayerKey(value: unknown): value is string {
+	return typeof value === 'string' && UUID.test(value);
+}

@@ -65,6 +65,21 @@ interface PlayerEntry {
 	credits: number;
 	highestSeq: number;
 	token: string;
+	/** Secret per-browser leaderboard key, or null for players without one. */
+	key: string | null;
+}
+
+/** A player's final result for a finished round. */
+export interface RoundResult {
+	id: string;
+	key: string | null;
+	name: string;
+	score: number;
+}
+
+export interface WorldOptions {
+	/** Called once each time a round ends, before scores reset. */
+	onRoundEnd?: (results: RoundResult[]) => void;
 }
 
 /** Authoritative game state. Advance it with `step()`, once per server tick. */
@@ -87,6 +102,7 @@ export class World {
 	constructor(
 		private readonly rng: () => number = Math.random,
 		private readonly newToken: () => string = randomUUID,
+		private readonly options: WorldOptions = {},
 	) {
 		this.coin = { id: 1, ...pickCoinSpawn([], rng) };
 	}
@@ -96,7 +112,12 @@ export class World {
 	}
 
 	/** Add a player with no checks; the first player into an empty game starts a round. */
-	addPlayer(id: string, name = id, color = this.freeColor()): PlayerState {
+	addPlayer(
+		id: string,
+		name = id,
+		color = this.freeColor(),
+		key: string | null = null,
+	): PlayerState {
 		const pos = this.playerSpawn();
 		const state: PlayerState = {
 			id,
@@ -115,6 +136,7 @@ export class World {
 			credits: MAX_INPUT_CREDITS,
 			highestSeq: 0,
 			token: '',
+			key,
 		};
 		this.players.set(id, entry);
 		if (this.roundPhase === 'waiting') {
@@ -124,7 +146,7 @@ export class World {
 	}
 
 	/** Join as a new player, or take back the player that owns `req.token` after a reconnect. */
-	join(id: string, req: JoinRequest): JoinResult {
+	join(id: string, req: JoinRequest, key: string | null = null): JoinResult {
 		const name = normalizeName(req.name);
 		if (this.players.has(id) || name === null) {
 			return { ok: false, reason: 'invalid' };
@@ -145,7 +167,7 @@ export class World {
 		if ([...this.players.values()].some((e) => e.state.color === req.color)) {
 			return { ok: false, reason: 'color-taken' };
 		}
-		this.addPlayer(id, name, req.color);
+		this.addPlayer(id, name, req.color, key);
 		const token = this.newToken();
 		this.players.get(id)!.token = token;
 		return { ok: true, token };
@@ -502,6 +524,14 @@ export class World {
 		this.roundPhase = 'results';
 		this.ticksLeft = RESULTS_TICKS;
 		this.clearExtras();
+		this.options.onRoundEnd?.(
+			[...this.players.values()].map(({ state, key }) => ({
+				id: state.id,
+				key,
+				name: state.name,
+				score: state.score,
+			})),
+		);
 	}
 
 	private findByToken(token: string): PlayerEntry | undefined {

@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { Server } from 'socket.io';
 import { TICK_MS } from '../shared/constants.js';
-import { isValidInputMessage, isValidJoinRequest } from '../shared/game.js';
+import { isPlayerKey, isValidInputMessage, isValidJoinRequest } from '../shared/game.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/protocol.js';
 import { createApp } from './app.js';
 import { World } from './world.js';
@@ -30,11 +30,17 @@ export async function startServer(opts: ServerOptions): Promise<GameServer> {
 	const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer);
 
 	io.on('connection', (socket) => {
+		const auth = socket.handshake.auth as { playerKey?: unknown };
+		const key = isPlayerKey(auth.playerKey) ? auth.playerKey : null;
 		socket.on('join', (req: unknown, ack: unknown) => {
 			if (typeof ack !== 'function') {
 				return;
 			}
-			ack(isValidJoinRequest(req) ? world.join(socket.id, req) : { ok: false, reason: 'invalid' });
+			ack(
+				isValidJoinRequest(req)
+					? world.join(socket.id, req, key)
+					: { ok: false, reason: 'invalid' },
+			);
 		});
 		socket.on('input', (msg: unknown) => {
 			if (isValidInputMessage(msg)) {

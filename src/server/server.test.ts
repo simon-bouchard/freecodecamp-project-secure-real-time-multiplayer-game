@@ -199,3 +199,31 @@ test('picking up a boost shows up in snapshots', async () => {
 	expect(self.effects.map((e) => e.kind)).toEqual(['speed']);
 	expect(self.effects[0]!.endsAt).toBeGreaterThan(snap.time);
 });
+
+test('the player key from the connection reaches round results; malformed keys are dropped', async () => {
+	const results: { name: string; key: string | null }[] = [];
+	const world = new World(Math.random, undefined, {
+		onRoundEnd: (r) => results.push(...r.map(({ name, key }) => ({ name, key }))),
+	});
+	server = await startServer({ port: 0, world });
+	const key = crypto.randomUUID();
+	const keyed: Client = io(`http://localhost:${server.port}`, {
+		transports: ['websocket'],
+		auth: { playerKey: key },
+	});
+	const bogus: Client = io(`http://localhost:${server.port}`, {
+		transports: ['websocket'],
+		auth: { playerKey: 'not-a-uuid' },
+	});
+	clients.push(keyed, bogus);
+	await Promise.all([keyed, bogus].map((c) => new Promise((r) => c.on('connect', () => r(null)))));
+	await join(keyed, 'Keyed', PALETTE[0]!);
+	await join(bogus, 'Bogus', PALETTE[1]!);
+	while (world.phase !== 'results') world.step();
+	expect(results).toEqual(
+		expect.arrayContaining([
+			{ name: 'Keyed', key },
+			{ name: 'Bogus', key: null },
+		]),
+	);
+});

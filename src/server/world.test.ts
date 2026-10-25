@@ -608,3 +608,31 @@ test('boosts cycle through all four kinds before repeating', () => {
 	expect([...kinds.slice(0, 4)].sort()).toEqual([...ITEM_KINDS].sort());
 	expect([...kinds.slice(4, 8)].sort()).toEqual([...ITEM_KINDS].sort());
 });
+
+test('reports each round result once, with player keys', () => {
+	const results: { id: string; key: string | null; name: string; score: number }[][] = [];
+	const world = new World(Math.random, tokens(), { onRoundEnd: (r) => results.push(r) });
+	world.join('a', { name: 'Ann', color: color(0) }, 'key-a');
+	world.join('b', { name: 'Bob', color: color(1) });
+	world.setCoinPosition({ x: 600, y: 440 });
+	world.setPlayerPosition('a', { x: 100, y: 100 });
+	world.setPlayerPosition('b', { x: 100, y: 300 });
+	world.setScore('a', 4);
+	steps(world, ROUND_TICKS + 5);
+	expect(results).toEqual([
+		[
+			{ id: 'a', key: 'key-a', name: 'Ann', score: 4 },
+			{ id: 'b', key: null, name: 'Bob', score: 0 },
+		],
+	]);
+});
+
+test('a rejoin hand-over keeps the player key', () => {
+	const results: { id: string; key: string | null }[][] = [];
+	const world = new World(Math.random, tokens(), { onRoundEnd: (r) => results.push(r) });
+	world.join('a', { name: 'Ann', color: color(0) }, 'key-a');
+	world.join('b', { name: 'Ann', color: color(0), token: 't1' }, 'key-a');
+	world.removePlayer('a');
+	steps(world, ROUND_TICKS);
+	expect(results[0]).toEqual([expect.objectContaining({ id: 'b', key: 'key-a' })]);
+});
