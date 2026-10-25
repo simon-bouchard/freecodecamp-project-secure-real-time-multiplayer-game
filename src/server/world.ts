@@ -539,7 +539,14 @@ export class World {
 			name: state.name,
 			score: state.score,
 		}));
-		this.roundEndListeners.forEach((listener) => listener(results));
+		for (const listener of this.roundEndListeners) {
+			try {
+				listener(results);
+			} catch (error) {
+				// A failing listener (e.g. the score database) must never stop the game.
+				console.error('Round-end listener failed:', error);
+			}
+		}
 	}
 
 	private findByToken(token: string): PlayerEntry | undefined {

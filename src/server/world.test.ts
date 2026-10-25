@@ -636,3 +636,16 @@ test('a rejoin hand-over keeps the player key', () => {
 	steps(world, ROUND_TICKS);
 	expect(results[0]).toEqual([expect.objectContaining({ id: 'b', key: 'key-a' })]);
 });
+
+test('a failing round-end listener does not stop the world', () => {
+	const world = new World(Math.random, tokens(), {
+		onRoundEnd: () => {
+			throw new Error('database is full');
+		},
+	});
+	world.join('a', { name: 'Ann', color: color(0) }, 'key-a');
+	const before = world.snapshot(0).tick;
+	expect(() => steps(world, ROUND_TICKS + 3)).not.toThrow();
+	expect(world.snapshot(0).tick).toBe(before + ROUND_TICKS + 3);
+	expect(world.phase).toBe('results');
+});

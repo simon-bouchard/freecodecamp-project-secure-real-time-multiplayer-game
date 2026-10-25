@@ -13,6 +13,7 @@ import type {
 	Snapshot,
 } from '../shared/protocol.js';
 import { type GameServer, startServer } from './server.js';
+import { SqliteScoreStore } from './scores/sqlite.js';
 import { World } from './world.js';
 
 type Client = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -275,4 +276,28 @@ test('closing the server twice is harmless', async () => {
 	const s = await startServer({ port: 0 });
 	await s.close();
 	await expect(s.close()).resolves.toBeUndefined();
+});
+
+test('the game keeps running when the score store fails', async () => {
+	const failing = new SqliteScoreStore(':memory:');
+	failing.record = () => {
+		throw new Error('disk full');
+	};
+	failing.top = () => {
+		throw new Error('disk full');
+	};
+	const world = new World();
+	server = await startServer({ port: 0, world, scores: failing });
+	const a = io(`http://localhost:${server.port}`, {
+		transports: ['websocket'],
+		auth: { playerKey: crypto.randomUUID() },
+	}) as Client;
+	clients.push(a);
+	await new Promise((r) => a.on('connect', () => r(null)));
+	await join(a, 'Ann', PALETTE[0]!);
+	world.setScore(a.id!, 3);
+	while (world.phase !== 'results') world.step();
+	const first = await nextSnapshot(a);
+	const later = await nextSnapshot(a, (s) => s.tick > first.tick + 2);
+	expect(later.round.phase).toBe('results');
 });

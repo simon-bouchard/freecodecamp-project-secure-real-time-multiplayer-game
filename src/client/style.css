@@ -232,7 +232,7 @@ canvas {
 }
 
 .theme-ninja .join-panel {
-	z-index: 2;
+	z-index: 3;
 	max-height: calc(100vh - 32px);
 	overflow-y: auto;
 }
@@ -368,7 +368,7 @@ canvas {
 }
 
 .theme-flat .join-panel {
-	z-index: 2;
+	z-index: 3;
 	max-height: calc(100vh - 32px);
 	overflow-y: auto;
 	background: var(--card);
@@ -539,4 +539,9 @@ canvas {
 .joining .scoreboard {
 	position: relative;
 	z-index: 2;
+}
+
+/* The join panel always sits above the side panel, even when they overlap on narrow screens. */
+.join-panel {
+	z-index: 3;
 }

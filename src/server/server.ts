@@ -6,7 +6,7 @@ import { TICK_MS } from '../shared/constants.js';
 import { isPlayerKey, isValidInputMessage, isValidJoinRequest } from '../shared/game.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/protocol.js';
 import { createApp } from './app.js';
-import { recordRound, viewFor } from './scores/leaderboard.js';
+import { rankedBoards, recordRound, viewFor } from './scores/leaderboard.js';
 import { SqliteScoreStore } from './scores/sqlite.js';
 import type { ScoreStore } from './scores/store.js';
 import { World } from './world.js';
@@ -38,14 +38,19 @@ export async function startServer(opts: ServerOptions): Promise<GameServer> {
 	const keys = new Map<string, string | null>();
 
 	world.addRoundEndListener((results) => {
-		const now = Date.now();
-		const byKey = recordRound(scores, results, now);
-		const highlights = results.flatMap(({ id, key }) => {
-			const period = key ? byKey.get(key) : undefined;
-			return period ? [{ playerId: id, period }] : [];
-		});
-		for (const socket of io.sockets.sockets.values()) {
-			socket.emit('leaderboard', viewFor(scores, keys.get(socket.id) ?? null, now, highlights));
+		try {
+			const now = Date.now();
+			const { boards, highlights: byKey } = recordRound(scores, results, now);
+			const highlights = results.flatMap(({ id, key }) => {
+				const period = key ? byKey.get(key) : undefined;
+				return period ? [{ playerId: id, period }] : [];
+			});
+			for (const socket of io.sockets.sockets.values()) {
+				const key = keys.get(socket.id) ?? null;
+				socket.emit('leaderboard', viewFor(scores, boards, key, now, highlights));
+			}
+		} catch (error) {
+			console.error('Could not record this round:', error);
 		}
 	});
 
@@ -53,7 +58,12 @@ export async function startServer(opts: ServerOptions): Promise<GameServer> {
 		const auth = socket.handshake.auth as { playerKey?: unknown };
 		const key = isPlayerKey(auth.playerKey) ? auth.playerKey : null;
 		keys.set(socket.id, key);
-		socket.emit('leaderboard', viewFor(scores, key, Date.now(), []));
+		try {
+			const now = Date.now();
+			socket.emit('leaderboard', viewFor(scores, rankedBoards(scores, now), key, now, []));
+		} catch (error) {
+			console.error('Could not load the leaderboard:', error);
+		}
 		socket.on('join', (req: unknown, ack: unknown) => {
 			if (typeof ack !== 'function') {
 				return;

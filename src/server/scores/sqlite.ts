@@ -26,16 +26,12 @@ const TOP_SQL = `
 		SELECT p.player_key, p.score, MIN(p.finished_at) AS finished_at
 		FROM period p JOIN best b ON b.player_key = p.player_key AND b.score = p.score
 		GROUP BY p.player_key
-	),
-	latest AS (
-		SELECT player_key, name FROM (
-			SELECT player_key, name,
-				ROW_NUMBER() OVER (PARTITION BY player_key ORDER BY finished_at DESC, id DESC) AS n
-			FROM runs
-		) WHERE n = 1
 	)
-	SELECT r.player_key AS key, l.name AS name, r.score AS score, r.finished_at AS finishedAt
-	FROM reached r JOIN latest l ON l.player_key = r.player_key
+	SELECT r.player_key AS key,
+		(SELECT name FROM runs n WHERE n.player_key = r.player_key
+			ORDER BY n.finished_at DESC, n.id DESC LIMIT 1) AS name,
+		r.score AS score, r.finished_at AS finishedAt
+	FROM reached r
 	ORDER BY r.score DESC, r.finished_at ASC, r.player_key ASC
 	LIMIT :limit
 `;
@@ -56,6 +52,8 @@ export class SqliteScoreStore implements ScoreStore {
 		if (file !== ':memory:') {
 			this.db.exec('PRAGMA journal_mode = WAL');
 		}
+		// Wait briefly instead of failing at once if another process holds the file.
+		this.db.exec('PRAGMA busy_timeout = 100');
 		this.db.exec(SCHEMA);
 		this.insert = this.db.prepare(
 			'INSERT INTO runs (player_key, name, score, finished_at, room) VALUES (?, ?, ?, ?, ?)',
@@ -80,7 +78,9 @@ export class SqliteScoreStore implements ScoreStore {
 			}
 			this.db.exec('COMMIT');
 		} catch (error) {
-			this.db.exec('ROLLBACK');
+			if (this.db.isTransaction) {
+				this.db.exec('ROLLBACK');
+			}
 			throw error;
 		}
 	}
