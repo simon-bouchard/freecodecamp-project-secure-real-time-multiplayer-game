@@ -11,6 +11,29 @@ import { blinkVisible, winnerText } from '../../format.js';
 import type { DrawnPlayer, FrameView } from '../../render.js';
 import { roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
+import { drawSprite, narutomakiSprite, ramenSprite, tagSprite } from './art.js';
+
+/** The ramen bowl is drawn this many times wider than the big pickup's hit radius. */
+const RAMEN_WIDTH_FACTOR = 2.4;
+
+function drawNarutomaki(ctx: CanvasRenderingContext2D, pos: Vec): void {
+	drawSprite(ctx, narutomakiSprite(), pos.x, pos.y, COIN_RADIUS / 9);
+}
+
+/** Ramen bowl, shifted up so the bowl body (not the rim) sits on the pickup position. */
+function drawRamen(ctx: CanvasRenderingContext2D, big: NonNullable<FrameView['bigCoin']>): void {
+	if (!blinkVisible(big.remainingMs)) {
+		return;
+	}
+	const scale = (BIG_COIN_RADIUS * RAMEN_WIDTH_FACTOR) / 52;
+	drawSprite(ctx, ramenSprite(), big.x, big.y - 5 * scale, scale);
+}
+
+function drawTag(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['item']>): void {
+	if (blinkVisible(item.remainingMs)) {
+		drawSprite(ctx, tagSprite(item.kind), item.x, item.y, ITEM_RADIUS / 10);
+	}
+}
 
 const COLORS = {
 	background: '#232323',
@@ -53,56 +76,6 @@ const ITEM_STYLE: Record<ItemKind, { color: string; symbol: string }> = {
 	double: { color: '#ffd166', symbol: 'x2' },
 	slow: { color: '#7aa2ff', symbol: '~' },
 };
-
-function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-	ctx.beginPath();
-	ctx.roundRect(x - size / 2, y - size / 2, size, size, size / 4);
-}
-
-function drawCoin(ctx: CanvasRenderingContext2D, pos: Vec): void {
-	ctx.fillStyle = COLORS.coin;
-	ctx.beginPath();
-	ctx.arc(pos.x, pos.y, COIN_RADIUS, 0, Math.PI * 2);
-	ctx.fill();
-}
-
-function drawBigCoin(ctx: CanvasRenderingContext2D, big: NonNullable<FrameView['bigCoin']>): void {
-	if (!blinkVisible(big.remainingMs)) {
-		return;
-	}
-	ctx.fillStyle = COLORS.coin;
-	ctx.beginPath();
-	ctx.arc(big.x, big.y, BIG_COIN_RADIUS, 0, Math.PI * 2);
-	ctx.fill();
-	ctx.strokeStyle = COLORS.coinRing;
-	ctx.lineWidth = 2;
-	ctx.beginPath();
-	ctx.arc(big.x, big.y, BIG_COIN_RADIUS - 3.5, 0, Math.PI * 2);
-	ctx.stroke();
-	ctx.fillStyle = COLORS.text;
-	ctx.beginPath();
-	ctx.arc(big.x - 4, big.y - 4, 2, 0, Math.PI * 2);
-	ctx.fill();
-}
-
-function drawItem(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['item']>): void {
-	if (!blinkVisible(item.remainingMs)) {
-		return;
-	}
-	const style = ITEM_STYLE[item.kind];
-	roundedRect(ctx, item.x, item.y, ITEM_RADIUS * 2);
-	ctx.fillStyle = COLORS.itemBackground;
-	ctx.fill();
-	ctx.strokeStyle = style.color;
-	ctx.lineWidth = 2;
-	ctx.stroke();
-	ctx.fillStyle = style.color;
-	ctx.font = 'bold 12px sans-serif';
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.fillText(style.symbol, item.x, item.y + 1);
-	ctx.textBaseline = 'alphabetic';
-}
 
 /** Small icons with a shrinking bar for each active effect, in a row above the name. */
 function drawEffects(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
@@ -201,9 +174,9 @@ export const ninjaTheme: Theme = {
 	name: 'ninja',
 	drawArena,
 	drawHeader,
-	drawPickup: drawCoin,
-	drawBigPickup: drawBigCoin,
-	drawItem,
+	drawPickup: drawNarutomaki,
+	drawBigPickup: drawRamen,
+	drawItem: drawTag,
 	drawPlayer,
 	drawResults,
 };
