@@ -70,12 +70,14 @@ export class JoinPanel {
 
 	show(message = ''): void {
 		this.form.hidden = false;
+		document.body.classList.add('joining');
 		this.error.textContent = message;
 		this.input.focus();
 	}
 
 	hide(): void {
 		this.form.hidden = true;
+		document.body.classList.remove('joining');
 		this.input.blur();
 	}
 

@@ -44,6 +44,7 @@ export function drawSprite(
 	y: number,
 	scale = 1,
 ): void {
+	ctx.imageSmoothingQuality = 'high';
 	ctx.drawImage(
 		sprite.canvas,
 		x - sprite.originX * scale,

@@ -222,9 +222,19 @@ canvas {
 	color: var(--cream);
 }
 
-.theme-ninja .stage {
-	overflow: hidden;
-	border-radius: 6px;
+/* While joining, dim the whole page; the panel sits above the dimming layer. */
+.theme-ninja.joining::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 1;
+	background: rgba(26, 18, 11, 0.45);
+}
+
+.theme-ninja .join-panel {
+	z-index: 2;
+	max-height: calc(100vh - 32px);
+	overflow-y: auto;
 }
 
 .theme-ninja .join-panel {
@@ -233,7 +243,6 @@ canvas {
 	border: 3px solid #5a3a1a;
 	border-top: 14px solid var(--seal-red);
 	border-radius: 2px;
-	box-shadow: 0 0 0 9999px rgba(26, 18, 11, 0.45);
 }
 
 .theme-ninja .join-panel h2 {

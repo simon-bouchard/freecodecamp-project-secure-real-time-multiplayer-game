@@ -308,12 +308,12 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	const names = view.scoreboard.filter((r) => round.winners.includes(r.id)).map((r) => r.name);
 	ctx.fillStyle = COLORS.winner;
 	ctx.font = 'bold 19px system-ui, sans-serif';
-	ctx.fillText(winnerText(names), centerX, y + 84);
+	ctx.fillText(winnerText(names), centerX, y + 84, width - 40);
 
 	ctx.font = 'bold 15px system-ui, sans-serif';
 	view.scoreboard.slice(0, 5).forEach((row, i) => {
 		ctx.fillStyle = readableOnPaper(row.color);
-		ctx.fillText(`${i + 1}. ${row.name}  ${row.score}`, centerX, y + 126 + i * 26);
+		ctx.fillText(`${i + 1}. ${row.name}  ${row.score}`, centerX, y + 126 + i * 26, width - 40);
 	});
 
 	const seconds = Math.max(0, Math.ceil(((round.endsAt ?? 0) - view.serverNow) / 1000));
