@@ -49,7 +49,7 @@ export const ninjaSounds: SoundSet = {
 		s.taiko(t + 0.5, { freq: 50, gain: 1 });
 		s.clack(t + 0.5);
 	},
-	tick: (s, t) => s.taikoRim(t, 0.9),
+	tick: (s, t) => s.taikoRim(t, 0.55),
 	lastTick: (s, t) => s.taiko(t, { gain: 0.8 }),
 	roundOver: (s, t) => s.gong(220, t, { gain: 0.4, dur: 2.5, bloom: 0.2 }),
 	win: (s, t) => {
