@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import {
+	BIG_COIN_DELAY_TICKS,
+	BIG_COIN_LIFETIME_TICKS,
+	BIG_COIN_RADIUS,
+	BIG_COIN_VALUE,
 	COIN_RADIUS,
 	COIN_SPAWN_ATTEMPTS,
 	INPUT_RATE_TOLERANCE,
@@ -14,10 +18,12 @@ import {
 	TICK_MS,
 } from '../shared/constants.js';
 import {
+	type Circle,
 	circlesOverlap,
 	movePlayer,
 	normalizeName,
 	pickCoinSpawn,
+	pickSpawn,
 	randomPointInArena,
 } from '../shared/game.js';
 import type {
@@ -30,6 +36,14 @@ import type {
 	Snapshot,
 	Vec,
 } from '../shared/protocol.js';
+
+/** A collectible with a remaining lifetime in ticks. */
+interface TimedPickup {
+	id: number;
+	x: number;
+	y: number;
+	ticksLeft: number;
+}
 
 interface PlayerEntry {
 	state: PlayerState;
@@ -47,6 +61,9 @@ export class World {
 	private roundPhase: RoundPhase = 'waiting';
 	private ticksLeft = 0;
 	private winners: string[] = [];
+	private bigCoin: TimedPickup | null = null;
+	private nextBigCoinTimer = 0;
+	private bigCoinIds = 0;
 
 	constructor(
 		private readonly rng: () => number = Math.random,
@@ -62,7 +79,16 @@ export class World {
 	/** Add a player with no checks; the first player into an empty game starts a round. */
 	addPlayer(id: string, name = id, color = this.freeColor()): PlayerState {
 		const pos = this.playerSpawn();
-		const state: PlayerState = { id, name, color, x: pos.x, y: pos.y, score: 0, lastSeq: 0 };
+		const state: PlayerState = {
+			id,
+			name,
+			color,
+			x: pos.x,
+			y: pos.y,
+			score: 0,
+			lastSeq: 0,
+			effects: [],
+		};
 		const entry = { state, queue: [], credits: MAX_INPUT_CREDITS, highestSeq: 0, token: '' };
 		this.players.set(id, entry);
 		if (this.roundPhase === 'waiting') {
@@ -126,11 +152,14 @@ export class World {
 	step(): void {
 		if (this.players.size === 0) {
 			this.roundPhase = 'waiting';
+			this.clearExtras();
 		}
 
 		if (this.roundPhase === 'playing') {
 			this.applyInputs();
+			this.updateBigCoin();
 			this.collectCoin();
+			this.collectBigCoin();
 			if (--this.ticksLeft <= 0) {
 				this.endRound();
 			}
@@ -150,8 +179,15 @@ export class World {
 		return {
 			tick: this.tick,
 			time,
-			players: [...this.players.values()].map((e) => ({ ...e.state })),
+			players: [...this.players.values()].map((e) => ({ ...e.state, effects: [] })),
 			coin: { ...this.coin },
+			bigCoin: this.bigCoin && {
+				id: this.bigCoin.id,
+				x: this.bigCoin.x,
+				y: this.bigCoin.y,
+				expiresAt: time + this.bigCoin.ticksLeft * TICK_MS,
+			},
+			item: null,
 			round: {
 				phase: this.roundPhase,
 				endsAt: this.roundPhase === 'waiting' ? null : time + this.ticksLeft * TICK_MS,
@@ -172,6 +208,16 @@ export class World {
 	/** Test hook: move the current coin without changing its id. */
 	setCoinPosition(pos: Vec): void {
 		this.coin = { ...this.coin, x: pos.x, y: pos.y };
+	}
+
+	/** Test hook: ticks until the next big coin spawns (0 while one is on the board). */
+	get bigCoinTimer(): number {
+		return this.bigCoin ? 0 : this.nextBigCoinTimer;
+	}
+
+	/** Test hook: place a fresh big coin, or remove it with null. */
+	setBigCoin(pos: Vec | null): void {
+		this.bigCoin = pos && { id: ++this.bigCoinIds, ...pos, ticksLeft: BIG_COIN_LIFETIME_TICKS };
 	}
 
 	/** Test hook: set a player's score. */
@@ -217,6 +263,57 @@ export class World {
 		}
 	}
 
+	private collectBigCoin(): void {
+		const big = this.bigCoin;
+		if (!big) {
+			return;
+		}
+		for (const { state } of this.players.values()) {
+			if (circlesOverlap(state, PLAYER_RADIUS, big, BIG_COIN_RADIUS)) {
+				state.score += BIG_COIN_VALUE;
+				this.bigCoin = null;
+				this.nextBigCoinTimer = this.randomTicks(BIG_COIN_DELAY_TICKS);
+				return;
+			}
+		}
+	}
+
+	/** Age the big coin on the board, or count down to the next one and spawn it. */
+	private updateBigCoin(): void {
+		if (this.bigCoin) {
+			if (--this.bigCoin.ticksLeft <= 0) {
+				this.bigCoin = null;
+				this.nextBigCoinTimer = this.randomTicks(BIG_COIN_DELAY_TICKS);
+			}
+		} else if (--this.nextBigCoinTimer <= 0) {
+			const pos = pickSpawn(BIG_COIN_RADIUS, this.obstacles(), this.rng);
+			this.setBigCoin(pos);
+		}
+	}
+
+	/** Circles new pickups must not overlap: players and everything already on the board. */
+	private obstacles(): Circle[] {
+		const circles: Circle[] = [...this.players.values()].map(({ state }) => ({
+			x: state.x,
+			y: state.y,
+			r: PLAYER_RADIUS,
+		}));
+		circles.push({ x: this.coin.x, y: this.coin.y, r: COIN_RADIUS });
+		if (this.bigCoin) {
+			circles.push({ x: this.bigCoin.x, y: this.bigCoin.y, r: BIG_COIN_RADIUS });
+		}
+		return circles;
+	}
+
+	/** Remove round-only pickups (big coin, boosts) and effects. */
+	private clearExtras(): void {
+		this.bigCoin = null;
+	}
+
+	private randomTicks([min, max]: readonly [number, number]): number {
+		return min + Math.floor(this.rng() * (max - min + 1));
+	}
+
 	private respawnCoin(): void {
 		const positions = [...this.players.values()].map((e) => e.state);
 		this.coin = { id: this.coin.id + 1, ...pickCoinSpawn(positions, this.rng) };
@@ -229,6 +326,8 @@ export class World {
 		this.roundPhase = 'playing';
 		this.ticksLeft = ROUND_TICKS;
 		this.winners = [];
+		this.clearExtras();
+		this.nextBigCoinTimer = this.randomTicks(BIG_COIN_DELAY_TICKS);
 	}
 
 	private endRound(): void {
@@ -237,6 +336,7 @@ export class World {
 		this.winners = states.filter((s) => s.score === top).map((s) => s.id);
 		this.roundPhase = 'results';
 		this.ticksLeft = RESULTS_TICKS;
+		this.clearExtras();
 	}
 
 	private findByToken(token: string): PlayerEntry | undefined {

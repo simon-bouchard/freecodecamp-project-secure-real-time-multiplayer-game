@@ -30,6 +30,7 @@ export interface PlayerState {
 	y: number;
 	score: number;
 	lastSeq: number;
+	effects: EffectState[];
 }
 
 /** An active boost on a player; `endsAt` is server time in ms. */
@@ -67,6 +68,8 @@ export interface Snapshot {
 	time: number;
 	players: PlayerState[];
 	coin: CoinState;
+	bigCoin: BigCoinState | null;
+	item: ItemState | null;
 	round: RoundState;
 }
 

@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest';
 import {
+	BIG_COIN_DELAY_TICKS,
+	BIG_COIN_LIFETIME_TICKS,
 	COIN_RADIUS,
 	INPUT_RATE_TOLERANCE,
 	MAX_INPUT_CREDITS,
@@ -356,4 +358,59 @@ test('join reports a colour outside the palette as unknown-color', () => {
 		ok: false,
 		reason: 'unknown-color',
 	});
+});
+
+function bigCoinWorld(): World {
+	const world = new World(() => 0);
+	world.addPlayer('a');
+	world.setPlayerPosition('a', { x: 300, y: 300 });
+	world.setCoinPosition({ x: 600, y: 440 });
+	return world;
+}
+
+test('big coin spawns when its timer runs out and then expires', () => {
+	const world = bigCoinWorld();
+	expect(world.bigCoinTimer).toBe(BIG_COIN_DELAY_TICKS[0]);
+	steps(world, BIG_COIN_DELAY_TICKS[0] - 1);
+	expect(world.snapshot(0).bigCoin).toBeNull();
+	world.step();
+	const big = world.snapshot(1000).bigCoin;
+	expect(big).not.toBeNull();
+	expect(big!.expiresAt).toBeCloseTo(1000 + BIG_COIN_LIFETIME_TICKS * TICK_MS);
+	steps(world, BIG_COIN_LIFETIME_TICKS - 1);
+	expect(world.snapshot(0).bigCoin).not.toBeNull();
+	world.step();
+	expect(world.snapshot(0).bigCoin).toBeNull();
+	expect(world.bigCoinTimer).toBe(BIG_COIN_DELAY_TICKS[0]);
+});
+
+test('big coin is worth 5 and restarts the timer when collected', () => {
+	const world = bigCoinWorld();
+	steps(world, 10);
+	world.setBigCoin({ x: 300, y: 300 });
+	world.step();
+	const snap = world.snapshot(0);
+	expect(snap.players[0]?.score).toBe(5);
+	expect(snap.bigCoin).toBeNull();
+	expect(world.bigCoinTimer).toBe(BIG_COIN_DELAY_TICKS[0]);
+});
+
+test('big coin is cleared at round end and when the game empties', () => {
+	const world = bigCoinWorld();
+	world.setBigCoin({ x: 100, y: 400 });
+	steps(world, ROUND_TICKS);
+	expect(world.phase).toBe('results');
+	expect(world.snapshot(0).bigCoin).toBeNull();
+
+	const empty = bigCoinWorld();
+	empty.setBigCoin({ x: 100, y: 400 });
+	empty.removePlayer('a');
+	empty.step();
+	expect(empty.snapshot(0).bigCoin).toBeNull();
+});
+
+test('snapshots carry empty effects and no item yet', () => {
+	const snap = bigCoinWorld().snapshot(0);
+	expect(snap.players[0]?.effects).toEqual([]);
+	expect(snap.item).toBeNull();
 });

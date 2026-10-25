@@ -6,7 +6,7 @@ import { Predictor } from './prediction.js';
 const RIGHT = { ...NO_INPUT, right: true };
 
 function server(x: number, lastSeq: number): PlayerState {
-	return { id: 'me', name: 'me', color: '#ff4d4d', x, y: 100, score: 0, lastSeq };
+	return { id: 'me', name: 'me', color: '#ff4d4d', x, y: 100, score: 0, lastSeq, effects: [] };
 }
 
 function predictorAfterThreeRights(): Predictor {

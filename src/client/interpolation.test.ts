@@ -4,7 +4,7 @@ import type { PlayerState, Snapshot } from '../shared/protocol.js';
 import { SnapshotBuffer } from './interpolation.js';
 
 function player(id: string, x: number): PlayerState {
-	return { id, name: id, color: '#ff4d4d', x, y: 200, score: 0, lastSeq: 0 };
+	return { id, name: id, color: '#ff4d4d', x, y: 200, score: 0, lastSeq: 0, effects: [] };
 }
 
 function snap(time: number, players: PlayerState[]): Snapshot {
@@ -13,6 +13,8 @@ function snap(time: number, players: PlayerState[]): Snapshot {
 		time,
 		players,
 		coin: { id: 1, x: 50, y: 50 },
+		bigCoin: null,
+		item: null,
 		round: { phase: 'playing', endsAt: null, winners: [] },
 	};
 }
