@@ -6,15 +6,157 @@ import {
 	ITEM_RADIUS,
 	PLAYER_RADIUS,
 } from '../../../shared/constants.js';
-import type { ItemKind, Vec } from '../../../shared/protocol.js';
-import { blinkVisible, winnerText } from '../../format.js';
+import type { Vec } from '../../../shared/protocol.js';
+import { blinkVisible, ordinal, winnerText } from '../../format.js';
 import type { DrawnPlayer, FrameView } from '../../render.js';
 import { roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
-import { drawSprite, narutomakiSprite, ramenSprite, tagSprite } from './art.js';
+import {
+	TAG_COLORS,
+	type Sprite,
+	drawSprite,
+	narutomakiSprite,
+	ramenSprite,
+	tagSprite,
+} from './art.js';
+import { PAPER, mulberry32, readableOnPaper } from './geometry.js';
+import { labelLayout } from './layout.js';
+import { SmokeTrail } from './smoke.js';
+
+const COLORS = {
+	page: '#2a1c11',
+	wood: '#3e2a1a',
+	woodDark: '#2a1c11',
+	woodLine: '#4b3322',
+	border: '#5b3f26',
+	sand: '#cdac78',
+	speckle: '#b38f58',
+	cream: '#f3e6c4',
+	ink: '#2a1a14',
+	nameHalo: '#e8d7b0',
+	headband: '#2b2f3a',
+	plate: '#cfd5de',
+	plateEdge: '#7b8494',
+	selfRing: '#fffaf0',
+	slowTint: 'rgba(77, 107, 214, 0.32)',
+	slowText: '#2b4a9a',
+	smoke: '#efe4d0',
+	dim: 'rgba(26, 18, 11, 0.6)',
+	scrollRod: '#7a2e1d',
+	scrollEdge: '#5a3a1a',
+	winner: '#b5321f',
+	muted: '#6b5640',
+} as const;
 
 /** The ramen bowl is drawn this many times wider than the big pickup's hit radius. */
 const RAMEN_WIDTH_FACTOR = 2.4;
+const CORNER_POSTS: readonly Vec[] = [
+	{ x: 28, y: 78 },
+	{ x: 612, y: 78 },
+	{ x: 28, y: 452 },
+	{ x: 612, y: 452 },
+];
+
+const smoke = new SmokeTrail();
+let floorSprite: Sprite | null = null;
+
+/** Sandy training-ground floor with fixed speckles, rendered once. */
+function floor(): Sprite {
+	if (!floorSprite) {
+		const canvas = document.createElement('canvas');
+		const scale = 2;
+		canvas.width = ARENA.width * scale;
+		canvas.height = ARENA.height * scale;
+		const ctx = canvas.getContext('2d')!;
+		ctx.scale(scale, scale);
+		ctx.fillStyle = COLORS.sand;
+		ctx.fillRect(0, 0, ARENA.width, ARENA.height);
+		const rnd = mulberry32(42);
+		ctx.fillStyle = COLORS.speckle;
+		for (let i = 0; i < 220; i++) {
+			ctx.beginPath();
+			ctx.arc(rnd() * ARENA.width, rnd() * ARENA.height, 0.8 + rnd() * 0.9, 0, Math.PI * 2);
+			ctx.fill();
+		}
+		ctx.strokeStyle = '#bf9c66';
+		ctx.lineWidth = 1.4;
+		for (let i = 0; i < 40; i++) {
+			const x = rnd() * ARENA.width;
+			const y = rnd() * ARENA.height;
+			ctx.beginPath();
+			ctx.moveTo(x, y);
+			ctx.quadraticCurveTo(x + 6, y - 2, x + 12, y);
+			ctx.stroke();
+		}
+		floorSprite = { canvas, width: ARENA.width, height: ARENA.height, originX: 0, originY: 0 };
+	}
+	return floorSprite;
+}
+
+function drawPost(ctx: CanvasRenderingContext2D, { x, y }: Vec): void {
+	ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+	ctx.beginPath();
+	ctx.ellipse(x, y + 10, 10, 3, 0, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = '#7a5532';
+	ctx.strokeStyle = '#4a311c';
+	ctx.lineWidth = 1.5;
+	ctx.beginPath();
+	ctx.roundRect(x - 7, y - 14, 14, 24, 3);
+	ctx.fill();
+	ctx.stroke();
+	ctx.fillStyle = '#a5784a';
+	ctx.lineWidth = 1.2;
+	ctx.beginPath();
+	ctx.ellipse(x, y - 14, 7, 2.6, 0, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.stroke();
+}
+
+/** Page background, sand floor, a thick wood border drawn outside the walls, corner posts. */
+function drawArena(ctx: CanvasRenderingContext2D): void {
+	ctx.fillStyle = COLORS.page;
+	ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
+	drawSprite(ctx, floor(), ARENA.x, ARENA.y);
+	ctx.strokeStyle = COLORS.border;
+	ctx.lineWidth = 5;
+	ctx.strokeRect(ARENA.x - 1.5, ARENA.y - 1.5, ARENA.width + 3, ARENA.height + 3);
+	CORNER_POSTS.forEach((post) => drawPost(ctx, post));
+}
+
+function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
+	smoke.forget(new Set(view.players.map((p) => p.id)));
+
+	ctx.fillStyle = COLORS.wood;
+	ctx.fillRect(0, 0, CANVAS.width, 46);
+	ctx.fillStyle = COLORS.woodDark;
+	ctx.fillRect(0, 40, CANVAS.width, 6);
+	ctx.strokeStyle = COLORS.woodLine;
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo(0, 12);
+	ctx.lineTo(CANVAS.width, 12);
+	ctx.moveTo(0, 28);
+	ctx.lineTo(CANVAS.width, 28);
+	ctx.stroke();
+
+	ctx.fillStyle = COLORS.cream;
+	ctx.font = 'bold 17px system-ui, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText(roundStatus(view), 14, 30);
+
+	ctx.font = 'bold 21px Georgia, "Times New Roman", serif';
+	ctx.textAlign = 'center';
+	ctx.letterSpacing = '2px';
+	ctx.fillText('COIN RACE', CANVAS.width / 2, 31);
+	ctx.letterSpacing = '0px';
+
+	const { rank, total } = view.rank;
+	const status = view.selfId ? `Score ${view.score} · ${ordinal(rank)}/${total}` : 'Spectating';
+	ctx.font = 'bold 15px system-ui, sans-serif';
+	ctx.textAlign = 'right';
+	ctx.fillText(status, CANVAS.width - 14, 30);
+}
 
 function drawNarutomaki(ctx: CanvasRenderingContext2D, pos: Vec): void {
 	drawSprite(ctx, narutomakiSprite(), pos.x, pos.y, COIN_RADIUS / 9);
@@ -35,138 +177,142 @@ function drawTag(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['ite
 	}
 }
 
-const COLORS = {
-	background: '#232323',
-	wall: '#a1a1a1',
-	text: '#ffffff',
-	coin: '#FFD700',
-	overlay: 'rgba(0, 0, 0, 0.75)',
-	coinRing: '#fff3a0',
-	itemBackground: '#1a1a1a',
-	effectTrack: 'rgba(255, 255, 255, 0.2)',
-	slowTint: 'rgba(80, 140, 255, 0.45)',
-} as const;
+/** Mini paper tags with a timer bar for each active effect, in a row centred on `y`. */
+function drawEffects(ctx: CanvasRenderingContext2D, player: DrawnPlayer, y: number): void {
+	const spacing = 12;
+	let x = player.x - (spacing * (player.effects.length - 1)) / 2;
+	for (const effect of player.effects) {
+		drawSprite(ctx, tagSprite(effect.kind), x, y, 0.5);
+		const fraction = Math.min(1, effect.remainingMs / effect.totalMs);
+		ctx.fillStyle = 'rgba(90, 58, 26, 0.3)';
+		ctx.fillRect(x - 5, y + 9, 10, 2);
+		ctx.fillStyle = TAG_COLORS[effect.kind];
+		ctx.fillRect(x - 5, y + 9, 10 * fraction, 2);
+		x += spacing;
+	}
+}
 
-function drawSmileyFace(ctx: CanvasRenderingContext2D, pos: Vec, color: string): void {
+function drawNinja(ctx: CanvasRenderingContext2D, { x, y }: Vec, color: string): void {
 	const r = PLAYER_RADIUS;
-	ctx.lineWidth = 1;
-	ctx.fillStyle = color;
-	ctx.strokeStyle = 'black';
+	ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
 	ctx.beginPath();
-	ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+	ctx.ellipse(x, y + 15, 14, 4, 0, 0, Math.PI * 2);
+	ctx.fill();
+
+	ctx.fillStyle = color;
+	ctx.strokeStyle = COLORS.ink;
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.arc(x, y, r, 0, Math.PI * 2);
 	ctx.fill();
 	ctx.stroke();
 
-	ctx.fillStyle = 'black';
-	for (const side of [-1, 1]) {
-		ctx.beginPath();
-		ctx.arc(pos.x + (side * r) / 3, pos.y - r / 3, r / 6, 0, Math.PI * 2);
-		ctx.fill();
-	}
-
+	ctx.save();
 	ctx.beginPath();
-	ctx.arc(pos.x, pos.y + r / 6, r / 2, 0, Math.PI);
+	ctx.arc(x, y, r - 1, 0, Math.PI * 2);
+	ctx.clip();
+	ctx.fillStyle = COLORS.headband;
+	ctx.fillRect(x - r, y - 8, r * 2, 7);
+	ctx.restore();
+
+	ctx.fillStyle = COLORS.plate;
+	ctx.strokeStyle = COLORS.plateEdge;
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.roundRect(x - 6, y - 9, 12, 9, 1.5);
+	ctx.fill();
 	ctx.stroke();
 }
 
-/** Colour and symbol for each boost, used for board items and effect icons. */
-const ITEM_STYLE: Record<ItemKind, { color: string; symbol: string }> = {
-	speed: { color: '#00e5ff', symbol: '»' },
-	magnet: { color: '#ff4fd8', symbol: 'U' },
-	double: { color: '#ffd166', symbol: 'x2' },
-	slow: { color: '#7aa2ff', symbol: '~' },
-};
+function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer, now: number): void {
+	const boosted = player.effects.some((e) => e.kind === 'speed');
+	const slowed = player.effects.some((e) => e.kind === 'slow');
 
-/** Small icons with a shrinking bar for each active effect, in a row above the name. */
-function drawEffects(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
-	const size = 10;
-	const gap = 3;
-	const y = player.y - PLAYER_RADIUS - 28;
-	let x = player.x - ((size + gap) * player.effects.length - gap) / 2;
-	for (const effect of player.effects) {
-		const { color } = ITEM_STYLE[effect.kind];
-		ctx.fillStyle = color;
-		ctx.fillRect(x, y, size, size);
-		ctx.fillStyle = COLORS.effectTrack;
-		ctx.fillRect(x, y + size + 1, size, 2);
-		ctx.fillStyle = color;
-		ctx.fillRect(x, y + size + 1, size * Math.min(1, effect.remainingMs / effect.totalMs), 2);
-		x += size + gap;
+	smoke.update(player.id, player, boosted, now);
+	ctx.fillStyle = COLORS.smoke;
+	for (const puff of smoke.puffs(player.id, now)) {
+		ctx.globalAlpha = puff.alpha;
+		ctx.beginPath();
+		ctx.arc(puff.x, puff.y, puff.r, 0, Math.PI * 2);
+		ctx.fill();
 	}
-}
+	ctx.globalAlpha = slowed ? 0.55 : 1;
+	drawNinja(ctx, player, player.color);
+	ctx.globalAlpha = 1;
 
-function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
-	drawSmileyFace(ctx, player, player.color);
-	if (player.effects.some((e) => e.kind === 'slow')) {
+	if (slowed) {
 		ctx.fillStyle = COLORS.slowTint;
 		ctx.beginPath();
 		ctx.arc(player.x, player.y, PLAYER_RADIUS, 0, Math.PI * 2);
 		ctx.fill();
+		ctx.fillStyle = COLORS.slowText;
+		ctx.font = 'bold 11px sans-serif';
+		ctx.textAlign = 'left';
+		ctx.fillText('z z', player.x + 18, player.y - 14);
 	}
-	drawEffects(ctx, player);
 	if (player.self) {
-		ctx.strokeStyle = COLORS.text;
+		ctx.strokeStyle = COLORS.selfRing;
 		ctx.lineWidth = 2;
 		ctx.beginPath();
-		ctx.arc(player.x, player.y, PLAYER_RADIUS + 2, 0, Math.PI * 2);
+		ctx.arc(player.x, player.y, PLAYER_RADIUS + 3, 0, Math.PI * 2);
 		ctx.stroke();
 	}
-	ctx.font = '12px sans-serif';
+
+	const { nameY, tagsY } = labelLayout(player.y);
+	ctx.font = 'bold 12px system-ui, sans-serif';
 	ctx.textAlign = 'center';
-	ctx.fillStyle = COLORS.text;
-	ctx.fillText(player.name, player.x, player.y - PLAYER_RADIUS - 6);
+	ctx.lineJoin = 'round';
+	ctx.strokeStyle = COLORS.nameHalo;
+	ctx.lineWidth = 3;
+	ctx.strokeText(player.name, player.x, nameY);
+	ctx.fillStyle = COLORS.ink;
+	ctx.fillText(player.name, player.x, nameY);
+	drawEffects(ctx, player, tagsY);
 }
 
-function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
-	const padding = 10;
-	const baseline = 32;
-	ctx.font = '18px monospace';
-	ctx.fillStyle = COLORS.text;
-
-	ctx.textAlign = 'left';
-	ctx.fillText(roundStatus(view), padding, baseline);
-	ctx.textAlign = 'center';
-	ctx.fillText('Coin Race', CANVAS.width / 2, baseline);
-	ctx.textAlign = 'right';
-	const { rank, total } = view.rank;
-	const status = view.selfId ? `Score: ${view.score}  Rank: ${rank}/${total}` : 'Spectating';
-	ctx.fillText(status, CANVAS.width - padding, baseline);
-}
-
+/** Results on an unrolled paper scroll with dark red rods. */
 function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	const round = view.round!;
-	const centerX = ARENA.x + ARENA.width / 2;
-	let y = ARENA.y + 80;
-
-	ctx.fillStyle = COLORS.overlay;
+	ctx.fillStyle = COLORS.dim;
 	ctx.fillRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
+
+	const x = 160;
+	const y = 110;
+	const width = 320;
+	const height = 280;
+	ctx.fillStyle = COLORS.scrollRod;
+	for (const rodX of [x - 12, x + width - 12]) {
+		ctx.beginPath();
+		ctx.roundRect(rodX, y - 8, 24, height + 16, 12);
+		ctx.fill();
+	}
+	ctx.fillStyle = PAPER;
+	ctx.strokeStyle = COLORS.scrollEdge;
+	ctx.lineWidth = 2;
+	ctx.fillRect(x, y, width, height);
+	ctx.strokeRect(x, y, width, height);
+
+	const centerX = x + width / 2;
 	ctx.textAlign = 'center';
-	ctx.fillStyle = COLORS.text;
-	ctx.font = '28px monospace';
-	ctx.fillText('Round over', centerX, y);
+	ctx.fillStyle = COLORS.ink;
+	ctx.font = 'bold 26px Georgia, "Times New Roman", serif';
+	ctx.fillText('Round over', centerX, y + 46);
 
 	const names = view.scoreboard.filter((r) => round.winners.includes(r.id)).map((r) => r.name);
-	ctx.font = '20px monospace';
-	ctx.fillStyle = COLORS.coin;
-	ctx.fillText(winnerText(names), centerX, (y += 50));
+	ctx.fillStyle = COLORS.winner;
+	ctx.font = 'bold 19px system-ui, sans-serif';
+	ctx.fillText(winnerText(names), centerX, y + 84);
 
-	ctx.font = '16px monospace';
+	ctx.font = 'bold 15px system-ui, sans-serif';
 	view.scoreboard.slice(0, 5).forEach((row, i) => {
-		ctx.fillStyle = row.color;
-		ctx.fillText(`${i + 1}. ${row.name}  ${row.score}`, centerX, (y += i === 0 ? 50 : 28));
+		ctx.fillStyle = readableOnPaper(row.color);
+		ctx.fillText(`${i + 1}. ${row.name}  ${row.score}`, centerX, y + 126 + i * 26);
 	});
 
 	const seconds = Math.max(0, Math.ceil(((round.endsAt ?? 0) - view.serverNow) / 1000));
-	ctx.fillStyle = COLORS.text;
-	ctx.fillText(`Next round in ${seconds}`, centerX, ARENA.y + ARENA.height - 40);
-}
-
-function drawArena(ctx: CanvasRenderingContext2D): void {
-	ctx.fillStyle = COLORS.background;
-	ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
-	ctx.strokeStyle = COLORS.wall;
-	ctx.lineWidth = ARENA.wall;
-	ctx.strokeRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
+	ctx.fillStyle = COLORS.muted;
+	ctx.font = '14px system-ui, sans-serif';
+	ctx.fillText(`Next round in ${seconds}`, centerX, y + height - 32);
 }
 
 /** The ninja theme: training ground, headband ninjas, narutomaki, ramen and paper tags. */

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { blinkVisible, formatClock, winnerText } from './format.js';
+import { blinkVisible, formatClock, ordinal, winnerText } from './format.js';
 
 test.each([
 	[42_001, '0:43'],
@@ -27,4 +27,17 @@ test.each([
 	[0, false],
 ])('blinkVisible(%d) = %s', (ms, visible) => {
 	expect(blinkVisible(ms)).toBe(visible);
+});
+
+test.each([
+	[1, '1st'],
+	[2, '2nd'],
+	[3, '3rd'],
+	[4, '4th'],
+	[11, '11th'],
+	[12, '12th'],
+	[13, '13th'],
+	[21, '21st'],
+])('ordinal(%d) = %s', (n, text) => {
+	expect(ordinal(n)).toBe(text);
 });

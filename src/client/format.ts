@@ -21,3 +21,10 @@ export function blinkVisible(remainingMs: number): boolean {
 	}
 	return Math.floor((2000 - remainingMs) / 150) % 2 === 0;
 }
+
+/** 1 -> "1st", 2 -> "2nd", 11 -> "11th", 23 -> "23rd". */
+export function ordinal(n: number): string {
+	const teen = n % 100 >= 11 && n % 100 <= 13;
+	const suffix = teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th');
+	return `${n}${suffix}`;
+}
