@@ -1,5 +1,5 @@
 import { SNAP_DISTANCE, TICK_DT, TICK_MS } from '../shared/constants.js';
-import { movePlayer, speedMultiplier } from '../shared/game.js';
+import { knockStep, movePlayer, speedMultiplier } from '../shared/game.js';
 import type { InputMessage, ItemKind, Move, PlayerState, Vec } from '../shared/protocol.js';
 
 /** Time constant for correction smoothing; about 90% of an error is gone after 100 ms. */
@@ -14,6 +14,13 @@ export class Predictor {
 	private offset: Vec = { x: 0, y: 0 };
 	/** Ticks left on each effect as of the last snapshot. */
 	private remaining = new Map<ItemKind, number>();
+	/** Knockback still to play out after the latest predicted step. */
+	private knock: Vec = { x: 0, y: 0 };
+
+	/** True while a bump's knockback is still moving us. */
+	get knocked(): boolean {
+		return this.knock.x !== 0 || this.knock.y !== 0;
+	}
 
 	/** Apply one tick of local input immediately; returns the message to send, or null. */
 	applyLocalInput(move: Move): InputMessage | null {
@@ -24,7 +31,9 @@ export class Predictor {
 		const factor = this.factorAt(this.pending.length);
 		this.pending.push(msg);
 		this.previous = this.position;
-		this.position = movePlayer(this.position, msg.move, TICK_DT, factor);
+		const step = knockStep(movePlayer(this.position, msg.move, TICK_DT, factor), this.knock);
+		this.position = step.pos;
+		this.knock = step.knock;
 		return msg;
 	}
 
@@ -34,8 +43,8 @@ export class Predictor {
 	}
 
 	/**
-	 * Rebase on the server's state and replay inputs it has not applied yet. The server applies
-	 * one input per tick, so the i-th pending input only gets effects with more than i ticks left.
+	 * Rebase on the server's state and replay unapplied inputs, one per server tick: input i gets
+	 * effects with more than i ticks left and is followed by one knockback step, as on the server.
 	 */
 	reconcile(server: PlayerState, snapshotTime = 0): void {
 		this.remaining = new Map(
@@ -43,9 +52,11 @@ export class Predictor {
 		);
 		this.pending = this.pending.filter((m) => m.seq > server.lastSeq);
 		let pos: Vec = { x: server.x, y: server.y };
+		let knock: Vec = { ...server.knock };
 		this.pending.forEach((msg, i) => {
-			pos = movePlayer(pos, msg.move, TICK_DT, this.factorAt(i));
+			({ pos, knock } = knockStep(movePlayer(pos, msg.move, TICK_DT, this.factorAt(i)), knock));
 		});
+		this.knock = knock;
 
 		if (this.position && this.previous) {
 			this.previous = {
@@ -87,6 +98,7 @@ export class Predictor {
 		this.position = null;
 		this.previous = null;
 		this.remaining = new Map();
+		this.knock = { x: 0, y: 0 };
 		this.pending = [];
 		this.nextSeq = 1;
 		this.offset = { x: 0, y: 0 };

@@ -257,3 +257,28 @@ test('the session keeps the latest leaderboard and exposes highlights during res
 	});
 	expect(session.view(now).highlights).toEqual(new Map([['p2', 'month']]));
 });
+
+test('a shoved player keeps sending still inputs until the knockback is gone', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world, tickMs: 1000 });
+	const socket = newSocket();
+	const session = new GameSession(socket, () => NO_MOVE);
+	await connected(socket);
+	await session.join('Ann', PALETTE[0]!);
+	await waitFor(() => session.predictor.position !== null);
+	const sent: Move[] = [];
+	const emit = socket.emit.bind(socket);
+	socket.emit = ((event: string, ...args: unknown[]) => {
+		if (event === 'input') sent.push((args[0] as { move: Move }).move);
+		return (emit as (...a: unknown[]) => GameSocket)(event, ...args);
+	}) as typeof socket.emit;
+
+	session.tick();
+	expect(sent).toEqual([]);
+
+	world.setKnock(socket.id!, { x: 600, y: 0 });
+	await waitFor(() => session.predictor.knocked);
+	session.tick();
+	session.tick();
+	expect(sent).toEqual([NO_MOVE, NO_MOVE]);
+});

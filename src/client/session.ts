@@ -112,7 +112,7 @@ export class GameSession {
 		const move = this.readInput();
 		const moving = move.x !== 0 || move.y !== 0;
 		const playing = this.buffer.latest()?.round.phase === 'playing';
-		const idle = !moving && sameMove(move, this.lastSent);
+		const idle = !moving && sameMove(move, this.lastSent) && !this.predictor.knocked;
 		if (!this.socket.connected || !this.isJoined || !playing || idle) {
 			this.predictor.holdStill();
 			return;

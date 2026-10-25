@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { TICK_MS } from '../shared/constants.js';
-import { NO_MOVE } from '../shared/game.js';
+import { KNOCK_DECAY, TICK_DT, TICK_MS } from '../shared/constants.js';
+import { NO_MOVE, knockStep, movePlayer } from '../shared/game.js';
 import type { PlayerState } from '../shared/protocol.js';
 import { Predictor } from './prediction.js';
 
@@ -144,4 +144,34 @@ test('nextStepFactor reflects the effects that will apply to the next input', ()
 	expect(p.nextStepFactor()).toBeCloseTo(1.5);
 	p.applyLocalInput(RIGHT);
 	expect(p.nextStepFactor()).toBeCloseTo(1);
+});
+
+test('replay applies the server knockback after each pending input, like the server', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	for (let i = 0; i < 3; i++) p.applyLocalInput(RIGHT);
+	p.reconcile({ ...server(100, 0), knock: { x: 600, y: 0 } });
+
+	let pos = { x: 100, y: 100 };
+	let knock = { x: 600, y: 0 };
+	for (let i = 0; i < 3; i++) {
+		({ pos, knock } = knockStep(movePlayer(pos, RIGHT, TICK_DT), knock));
+	}
+	expect(p.position!.x).toBeCloseTo(pos.x);
+	expect(p.knocked).toBe(true);
+});
+
+test('a local input also slides with the knockback, which fades', () => {
+	const p = new Predictor();
+	p.reconcile({ ...server(100, 0), knock: { x: 600, y: 0 } });
+	p.applyLocalInput(NO_MOVE);
+	expect(p.position!.x).toBeCloseTo(100 + 600 * TICK_DT);
+	p.applyLocalInput(NO_MOVE);
+	expect(p.position!.x).toBeCloseTo(100 + 600 * TICK_DT * (1 + KNOCK_DECAY));
+});
+
+test('knocked is false without knockback', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	expect(p.knocked).toBe(false);
 });
