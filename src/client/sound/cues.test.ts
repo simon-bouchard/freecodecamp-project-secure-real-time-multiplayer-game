@@ -23,6 +23,8 @@ function snap(
 		lastSeq: 0,
 		effects: [],
 		knock: { x: 0, y: 0 },
+		dash: null,
+		dashReadyAt: 0,
 	});
 	return {
 		tick: time,

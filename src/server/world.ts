@@ -7,6 +7,8 @@ import {
 	BUMP_BASE,
 	BUMP_STRENGTH,
 	COIN_RADIUS,
+	DASH_COOLDOWN_TICKS,
+	DASH_INPUTS,
 	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
 	ITEM_DELAY_TICKS,
@@ -29,11 +31,10 @@ import {
 } from '../shared/constants.js';
 import {
 	type Circle,
+	applyInput,
 	circlesOverlap,
 	clampToArena,
 	knockStep,
-	movePlayer,
-	moveVelocity,
 	normalizeName,
 	pickCoinSpawn,
 	pickSpawn,
@@ -74,6 +75,12 @@ interface PlayerEntry {
 	highestSeq: number;
 	/** Velocity (px/s) of the last input applied, kept through ticks without input; sizes bumps. */
 	steer: Vec;
+	/** Ticks until a dash is allowed again. */
+	dashCooldown: number;
+	/** Ticks since the current dash started; a dash left unfinished too long is dropped. */
+	dashAge: number;
+	/** Last non-zero move direction, for a dash requested without one. */
+	facing: Vec;
 	token: string;
 	/** Secret per-browser leaderboard key, or null for players without one. */
 	key: string | null;
@@ -150,6 +157,8 @@ export class World {
 			lastSeq: 0,
 			effects: [],
 			knock: { x: 0, y: 0 },
+			dash: null,
+			dashReadyAt: 0,
 		};
 		const entry: PlayerEntry = {
 			state,
@@ -158,6 +167,9 @@ export class World {
 			credits: MAX_INPUT_CREDITS,
 			highestSeq: 0,
 			steer: { x: 0, y: 0 },
+			dashCooldown: 0,
+			dashAge: 0,
+			facing: { x: 1, y: 0 },
 			token: '',
 			key,
 		};
@@ -207,7 +219,11 @@ export class World {
 			return;
 		}
 		entry.highestSeq = msg.seq;
-		entry.queue.push({ seq: msg.seq, move: { x: msg.move.x, y: msg.move.y } });
+		entry.queue.push({
+			seq: msg.seq,
+			move: { x: msg.move.x, y: msg.move.y },
+			...(msg.dash ? { dash: true as const } : {}),
+		});
 		if (entry.queue.length > MAX_QUEUED_INPUTS) {
 			entry.queue.shift();
 		}
@@ -259,6 +275,8 @@ export class World {
 			players: [...this.players.values()].map((e) => ({
 				...e.state,
 				knock: { ...e.state.knock },
+				dash: e.state.dash && { left: e.state.dash.left, dir: { ...e.state.dash.dir } },
+				dashReadyAt: e.dashCooldown > 0 ? time + e.dashCooldown * TICK_MS : 0,
 				effects: [...e.effects].map(([kind, ticks]) => ({
 					kind,
 					endsAt: time + ticks * TICK_MS,
@@ -350,13 +368,34 @@ export class World {
 	private applyInputs(): void {
 		for (const entry of this.players.values()) {
 			entry.credits = Math.min(entry.credits + INPUT_RATE_TOLERANCE, MAX_INPUT_CREDITS);
+			entry.dashCooldown = Math.max(0, entry.dashCooldown - 1);
+			if (entry.state.dash && ++entry.dashAge > 2 * DASH_INPUTS) {
+				entry.state.dash = null;
+			}
 			while (entry.credits >= 1 && entry.queue.length > 0) {
 				const msg = entry.queue.shift()!;
 				const factor = speedMultiplier(entry.effects.keys());
-				const pos = movePlayer(entry.state, msg.move, TICK_DT, factor);
-				entry.steer = moveVelocity(msg.move, factor);
-				entry.state.x = pos.x;
-				entry.state.y = pos.y;
+				const startDash = msg.dash === true && !entry.state.dash && entry.dashCooldown === 0;
+				const step = applyInput(
+					entry.state,
+					msg.move,
+					entry.state.dash,
+					startDash,
+					factor,
+					entry.facing,
+				);
+				if (startDash) {
+					entry.dashCooldown = DASH_COOLDOWN_TICKS;
+					entry.dashAge = 0;
+				}
+				const length = Math.hypot(msg.move.x, msg.move.y);
+				if (length > 0) {
+					entry.facing = { x: msg.move.x / length, y: msg.move.y / length };
+				}
+				entry.steer = step.velocity;
+				entry.state.x = step.pos.x;
+				entry.state.y = step.pos.y;
+				entry.state.dash = step.dash;
 				entry.state.lastSeq = msg.seq;
 				entry.credits--;
 			}
@@ -401,6 +440,8 @@ export class World {
 				const toB = BUMP_BASE + (BUMP_STRENGTH * aInto) / PLAYER_SPEED;
 				const toA = BUMP_BASE + (BUMP_STRENGTH * bInto) / PLAYER_SPEED;
 				b.state.knock = { x: n.x * toB, y: n.y * toB };
+				a.state.dash = null;
+				b.state.dash = null;
 				a.state.knock = { x: -n.x * toA, y: -n.y * toA };
 				this.events.push({ kind: 'bump', playerId: a.state.id, otherId: b.state.id });
 			}
@@ -588,6 +629,8 @@ export class World {
 			entry.effects.clear();
 			entry.state.knock = { x: 0, y: 0 };
 			entry.steer = { x: 0, y: 0 };
+			entry.state.dash = null;
+			entry.dashCooldown = 0;
 		}
 	}
 

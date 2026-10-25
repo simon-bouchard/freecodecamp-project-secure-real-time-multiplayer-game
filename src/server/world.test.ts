@@ -6,6 +6,8 @@ import {
 	BUMP_BASE,
 	BUMP_STRENGTH,
 	COIN_RADIUS,
+	DASH_COOLDOWN_TICKS,
+	DASH_SPEED,
 	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
 	ITEM_DELAY_TICKS,
@@ -824,4 +826,68 @@ test('a tick whose input arrived late still bumps with the last steering', () =>
 	world.setPlayerPosition('a', { x: 375, y: 300 });
 	world.step();
 	expect(knockOf(world, 'b').x).toBeCloseTo(BUMP_BASE + BUMP_STRENGTH);
+});
+
+function dashWorld(x = 100): World {
+	const world = new World(() => 0);
+	world.addPlayer('a');
+	world.setPlayerPosition('a', { x, y: 300 });
+	world.setCoinPosition({ x: 600, y: 440 });
+	return world;
+}
+
+function selfOf(world: World, id = 'a', time = 0) {
+	const p = world.snapshot(time).players.find((pl) => pl.id === id);
+	if (!p) throw new Error(`no player ${id}`);
+	return p;
+}
+
+test('a dash moves 150 px over five inputs and starts the cooldown', () => {
+	const world = dashWorld();
+	world.queueInput('a', { seq: 1, move: RIGHT, dash: true });
+	world.step();
+	expect(selfOf(world, 'a', 1000).dashReadyAt).toBeCloseTo(1000 + DASH_COOLDOWN_TICKS * TICK_MS);
+	expect(selfOf(world).dash).toEqual({ left: 4, dir: RIGHT });
+	for (let seq = 2; seq <= 5; seq++) {
+		world.queueInput('a', { seq, move: { x: 0, y: -1 } });
+		world.step();
+	}
+	expect(selfOf(world).x).toBeCloseTo(250);
+	expect(selfOf(world).y).toBeCloseTo(300);
+	expect(selfOf(world).dash).toBeNull();
+});
+
+test('a dash request while cooling down is ignored until the cooldown is over', () => {
+	const world = dashWorld(60);
+	world.queueInput('a', { seq: 1, move: { x: 0, y: 1 }, dash: true });
+	world.step();
+	steps(world, DASH_COOLDOWN_TICKS - 2);
+	const before = selfOf(world).x;
+	world.queueInput('a', { seq: 2, move: RIGHT, dash: true });
+	world.step();
+	expect(selfOf(world).x - before).toBeCloseTo(10);
+	world.queueInput('a', { seq: 3, move: RIGHT, dash: true });
+	world.step();
+	expect(selfOf(world).x - before).toBeCloseTo(40);
+	expect(selfOf(world).dashReadyAt).toBeGreaterThan(0);
+});
+
+test('ramming with a dash shoves hard and ends the dash', () => {
+	const world = bumpWorld({ x: 300, y: 300 }, { x: 375, y: 300 });
+	world.queueInput('a', { seq: 1, move: RIGHT, dash: true });
+	world.step();
+	world.queueInput('a', { seq: 2, move: RIGHT });
+	world.step();
+	expect(knockOf(world, 'b').x).toBeCloseTo(BUMP_BASE + BUMP_STRENGTH * DASH_SPEED);
+	expect(selfOf(world).dash).toBeNull();
+});
+
+test('round end clears dashes and cooldowns', () => {
+	const world = dashWorld();
+	steps(world, ROUND_TICKS - 1);
+	world.queueInput('a', { seq: 1, move: RIGHT, dash: true });
+	world.step();
+	expect(world.phase).toBe('results');
+	expect(selfOf(world).dash).toBeNull();
+	expect(selfOf(world).dashReadyAt).toBe(0);
 });

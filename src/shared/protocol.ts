@@ -21,10 +21,17 @@ export interface InputState {
 	right: boolean;
 }
 
-/** One client tick of input; `seq` increases by one per message. */
+/** One client tick of input; `seq` increases by one per message. `dash` asks to start a dash. */
 export interface InputMessage {
 	seq: number;
 	move: Move;
+	dash?: true;
+}
+
+/** A dash in progress: inputs it still covers and its fixed direction (unit length). */
+export interface DashState {
+	left: number;
+	dir: Vec;
 }
 
 /** A player as the server sees it; `lastSeq` is the last input applied. */
@@ -39,6 +46,9 @@ export interface PlayerState {
 	effects: EffectState[];
 	/** Knockback velocity in px/s from a bump; fades every tick. */
 	knock: Vec;
+	dash: DashState | null;
+	/** Server time (ms) when the next dash is allowed; 0 when ready. */
+	dashReadyAt: number;
 }
 
 /** An active boost on a player; `endsAt` is server time in ms. */

@@ -1,6 +1,8 @@
 import {
 	COIN_RADIUS,
 	COIN_SPAWN_ATTEMPTS,
+	DASH_INPUTS,
+	DASH_SPEED,
 	KNOCK_DECAY,
 	KNOCK_STOP,
 	NAME_MAX_LENGTH,
@@ -12,7 +14,15 @@ import {
 	WALL_BOUNCE,
 	innerBounds,
 } from './constants.js';
-import type { InputMessage, InputState, ItemKind, JoinRequest, Move, Vec } from './protocol.js';
+import type {
+	DashState,
+	InputMessage,
+	InputState,
+	ItemKind,
+	JoinRequest,
+	Move,
+	Vec,
+} from './protocol.js';
 
 /** A circle to keep spawns away from. */
 export interface Circle {
@@ -53,6 +63,42 @@ export function moveVelocity(move: Move, speedMultiplier = 1): Vec {
 	}
 	const scale = (PLAYER_SPEED * speedMultiplier * Math.min(1, length)) / length;
 	return { x: move.x * scale, y: move.y * scale };
+}
+
+/**
+ * Apply one input. A dash (started by this input, or still running) replaces the move: it goes
+ * in a fixed direction at `DASH_SPEED` times speed for `DASH_INPUTS` inputs. Shared by server and
+ * client. `velocity` is what the input asked for in px/s, used to size bumps.
+ */
+export function applyInput(
+	pos: Vec,
+	move: Move,
+	dash: DashState | null,
+	startDash: boolean,
+	speedMultiplier: number,
+	fallbackDir: Vec,
+): { pos: Vec; dash: DashState | null; velocity: Vec } {
+	let active = dash;
+	if (!active && startDash) {
+		const length = Math.hypot(move.x, move.y);
+		const dir = length > 0 ? { x: move.x / length, y: move.y / length } : { ...fallbackDir };
+		active = { left: DASH_INPUTS, dir };
+	}
+	if (!active) {
+		return {
+			pos: movePlayer(pos, move, TICK_DT, speedMultiplier),
+			dash: null,
+			velocity: moveVelocity(move, speedMultiplier),
+		};
+	}
+	const speed = PLAYER_SPEED * DASH_SPEED * speedMultiplier;
+	const velocity = { x: active.dir.x * speed, y: active.dir.y * speed };
+	const next = clampToArena(
+		{ x: pos.x + velocity.x * TICK_DT, y: pos.y + velocity.y * TICK_DT },
+		PLAYER_RADIUS,
+	);
+	const left = active.left - 1;
+	return { pos: next, dash: left > 0 ? { left, dir: active.dir } : null, velocity };
 }
 
 /**
@@ -162,7 +208,14 @@ export function parseInputMessage(value: unknown): InputMessage | null {
 			return null;
 		}
 		const length = Math.hypot(x, y);
-		return { seq, move: length > 1 ? { x: x / length, y: y / length } : { x, y } };
+		const parsed: InputMessage = {
+			seq,
+			move: length > 1 ? { x: x / length, y: y / length } : { x, y },
+		};
+		if (value.dash === true) {
+			parsed.dash = true;
+		}
+		return parsed;
 	}
 	if (
 		isRecord(input) &&

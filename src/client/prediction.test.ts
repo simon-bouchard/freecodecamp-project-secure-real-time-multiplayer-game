@@ -17,6 +17,8 @@ function server(x: number, lastSeq: number): PlayerState {
 		lastSeq,
 		effects: [],
 		knock: { x: 0, y: 0 },
+		dash: null,
+		dashReadyAt: 0,
 	};
 }
 

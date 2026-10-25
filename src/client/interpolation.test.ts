@@ -14,6 +14,8 @@ function player(id: string, x: number): PlayerState {
 		lastSeq: 0,
 		effects: [],
 		knock: { x: 0, y: 0 },
+		dash: null,
+		dashReadyAt: 0,
 	};
 }
 

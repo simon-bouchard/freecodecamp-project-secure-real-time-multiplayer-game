@@ -99,6 +99,13 @@ export const EFFECT_TICKS: Record<ItemKind, number> = {
 	slow: 3 * TICK_RATE,
 };
 
+/** A dash moves this many times faster than running... */
+export const DASH_SPEED = 3;
+/** ...for this many applied inputs (one per tick, so 0.15 s and 150 px at normal speed). */
+export const DASH_INPUTS = 5;
+/** Ticks from the start of a dash until the next one is allowed (3 s). */
+export const DASH_COOLDOWN_TICKS = 3 * TICK_RATE;
+
 /** Every bump shoves both players at least this much, in px/s. */
 export const BUMP_BASE = 120;
 /** Extra shove in px/s when the other player ran into you at full speed (scales with speed). */

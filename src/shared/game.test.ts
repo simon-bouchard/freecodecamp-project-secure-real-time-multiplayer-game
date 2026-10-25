@@ -11,6 +11,7 @@ import {
 import {
 	NO_INPUT,
 	NO_MOVE,
+	applyInput,
 	calculateRank,
 	circlesOverlap,
 	inputToMove,
@@ -311,5 +312,40 @@ describe('knockStep', () => {
 			pos: { x: 300, y: 300 },
 			knock: { x: 0, y: 0 },
 		});
+	});
+});
+
+describe('dash', () => {
+	test('parseInputMessage keeps dash only when it is exactly true', () => {
+		const move = { x: 1, y: 0 };
+		expect(parseInputMessage({ seq: 1, move, dash: true })).toEqual({ seq: 1, move, dash: true });
+		expect(parseInputMessage({ seq: 1, move, dash: 'yes' })).toEqual({ seq: 1, move });
+		expect(parseInputMessage({ seq: 1, move, dash: 1 })).toEqual({ seq: 1, move });
+	});
+
+	test('a dash covers its input and the next four at 3x speed, ignoring their moves', () => {
+		const right = { x: 1, y: 0 };
+		const up = { x: 0, y: -1 };
+		let state = applyInput({ x: 100, y: 300 }, right, null, true, 1, right);
+		expect(state.pos.x).toBeCloseTo(130);
+		expect(state.velocity).toEqual({ x: 900, y: 0 });
+		for (let i = 0; i < 4; i++) {
+			state = applyInput(state.pos, up, state.dash, false, 1, right);
+		}
+		expect(state.pos).toEqual({ x: 250, y: 300 });
+		expect(state.dash).toBeNull();
+		state = applyInput(state.pos, up, state.dash, false, 1, right);
+		expect(state.pos.y).toBeCloseTo(290);
+	});
+
+	test('a dash with no move uses the fallback direction and scales with boosts', () => {
+		const state = applyInput({ x: 300, y: 300 }, NO_MOVE, null, true, 1.5, { x: 0, y: 1 });
+		expect(state.pos.y).toBeCloseTo(345);
+		expect(state.dash).toEqual({ left: 4, dir: { x: 0, y: 1 } });
+	});
+
+	test('without a dash it is a normal move', () => {
+		const state = applyInput({ x: 300, y: 300 }, { x: 1, y: 0 }, null, false, 1, { x: 1, y: 0 });
+		expect(state).toEqual({ pos: { x: 310, y: 300 }, dash: null, velocity: { x: 300, y: 0 } });
 	});
 });
