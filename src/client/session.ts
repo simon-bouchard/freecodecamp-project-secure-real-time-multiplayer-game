@@ -151,9 +151,11 @@ export class GameSession {
 
 		return {
 			players: drawn,
-			coin: (latest && pickups.get(`coin:${latest.coin.id}`)) ?? null,
+			coin: latest
+				? (pickups.get(`coin:${latest.coin.id}`) ?? { x: latest.coin.x, y: latest.coin.y })
+				: null,
 			bigCoin: latest?.bigCoin
-				? this.timedPickup(pickups, `big:${latest.bigCoin.id}`, latest.bigCoin.expiresAt, serverNow)
+				? this.timedPickup(pickups, `big:${latest.bigCoin.id}`, latest.bigCoin, serverNow)
 				: null,
 			item: latest?.item ? this.boardItem(pickups, latest.item, serverNow) : null,
 			selfId,
@@ -171,15 +173,18 @@ export class GameSession {
 		};
 	}
 
-	/** Interpolated position of a pickup plus its remaining lifetime, or null if not sampled. */
+	/**
+	 * Interpolated position of a pickup plus its remaining lifetime. A pickup too new to be in
+	 * the interpolated range is shown at its latest position rather than hidden.
+	 */
 	private timedPickup(
 		positions: Map<string, Vec>,
 		key: string,
-		expiresAt: number,
+		latest: Vec & { expiresAt: number },
 		serverNow: number,
-	): { x: number; y: number; remainingMs: number } | null {
-		const pos = positions.get(key);
-		return pos ? { x: pos.x, y: pos.y, remainingMs: Math.max(0, expiresAt - serverNow) } : null;
+	): { x: number; y: number; remainingMs: number } {
+		const pos = positions.get(key) ?? latest;
+		return { x: pos.x, y: pos.y, remainingMs: Math.max(0, latest.expiresAt - serverNow) };
 	}
 
 	private boardItem(
@@ -187,8 +192,7 @@ export class GameSession {
 		item: ItemState,
 		serverNow: number,
 	): FrameView['item'] {
-		const timed = this.timedPickup(positions, `item:${item.id}`, item.expiresAt, serverNow);
-		return timed && { ...timed, kind: item.kind };
+		return { ...this.timedPickup(positions, `item:${item.id}`, item, serverNow), kind: item.kind };
 	}
 
 	/** After a reconnect, rejoin with the stored profile and token. */

@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Server } from 'socket.io';
@@ -216,4 +217,20 @@ test('view shows items, the big coin and own effects', async () => {
 	const self = view.players.find((p) => p.self)!;
 	expect(self.effects.map((e) => e.kind)).toEqual(['speed']);
 	expect(self.effects[0]!.totalMs).toBeCloseTo(5000, -2);
+});
+
+test('a freshly respawned coin shows immediately, before interpolation catches up', () => {
+	const stub = Object.assign(new EventEmitter(), { connected: true, id: 'me' });
+	const session = new GameSession(stub as unknown as GameSocket, () => NO_INPUT);
+	const base = {
+		tick: 0,
+		players: [],
+		bigCoin: null,
+		item: null,
+		round: { phase: 'playing' as const, endsAt: null, winners: [] },
+	};
+	const now = performance.now();
+	stub.emit('snapshot', { ...base, time: now - 33, coin: { id: 1, x: 100, y: 100 } });
+	stub.emit('snapshot', { ...base, time: now, coin: { id: 2, x: 400, y: 300 } });
+	expect(session.view(now + 5).coin).toEqual({ x: 400, y: 300 });
 });

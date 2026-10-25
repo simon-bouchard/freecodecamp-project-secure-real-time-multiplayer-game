@@ -5,7 +5,6 @@ import {
 	BIG_COIN_RADIUS,
 	BIG_COIN_VALUE,
 	COIN_RADIUS,
-	COIN_SPAWN_ATTEMPTS,
 	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
 	ITEM_DELAY_TICKS,
@@ -32,7 +31,6 @@ import {
 	pickCoinSpawn,
 	pickSpawn,
 	pullToward,
-	randomPointInArena,
 	speedMultiplier,
 } from '../shared/game.js';
 import type {
@@ -435,12 +433,17 @@ export class World {
 
 	/** Circles new pickups must not overlap: players and everything already on the board. */
 	private obstacles(): Circle[] {
-		const circles: Circle[] = [...this.players.values()].map(({ state }) => ({
+		const players: Circle[] = [...this.players.values()].map(({ state }) => ({
 			x: state.x,
 			y: state.y,
 			r: PLAYER_RADIUS,
 		}));
-		circles.push({ x: this.coin.x, y: this.coin.y, r: COIN_RADIUS });
+		return [...players, ...this.pickupCircles()];
+	}
+
+	/** Circles of everything collectible on the board. */
+	private pickupCircles(): Circle[] {
+		const circles: Circle[] = [{ x: this.coin.x, y: this.coin.y, r: COIN_RADIUS }];
 		if (this.bigCoin) {
 			circles.push({ x: this.bigCoin.x, y: this.bigCoin.y, r: BIG_COIN_RADIUS });
 		}
@@ -464,8 +467,7 @@ export class World {
 	}
 
 	private respawnCoin(): void {
-		const positions = [...this.players.values()].map((e) => e.state);
-		this.coin = { id: this.coin.id + 1, ...pickCoinSpawn(positions, this.rng) };
+		this.coin = { id: this.coin.id + 1, ...pickSpawn(COIN_RADIUS, this.obstacles(), this.rng) };
 	}
 
 	private startRound(): void {
@@ -506,14 +508,7 @@ export class World {
 
 	/** Random player position not touching the coin, so nobody scores just by joining. */
 	private playerSpawn(): Vec {
-		let pos = randomPointInArena(PLAYER_RADIUS, this.rng);
-		for (let i = 1; i < COIN_SPAWN_ATTEMPTS; i++) {
-			if (!circlesOverlap(pos, PLAYER_RADIUS, this.coin, COIN_RADIUS)) {
-				return pos;
-			}
-			pos = randomPointInArena(PLAYER_RADIUS, this.rng);
-		}
-		return pos;
+		return pickSpawn(PLAYER_RADIUS, this.pickupCircles(), this.rng);
 	}
 
 	private freeColor(): string {

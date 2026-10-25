@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import {
 	BIG_COIN_DELAY_TICKS,
 	BIG_COIN_LIFETIME_TICKS,
+	BIG_COIN_RADIUS,
 	COIN_RADIUS,
 	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
@@ -556,4 +557,36 @@ test('snapshots list effects with their end time', () => {
 	world.setEffect('a', 'double', 30);
 	const a = world.snapshot(1000).players.find((p) => p.id === 'a');
 	expect(a?.effects).toEqual([{ kind: 'double', endsAt: 1000 + 30 * TICK_MS }]);
+});
+
+/** World whose rng returns queued values first, then a fixed default. */
+function scriptedWorld(): { world: World; queue: number[] } {
+	const queue: number[] = [];
+	const world = new World(() => queue.shift() ?? 0.1);
+	return { world, queue };
+}
+
+test('a respawned coin never lands on the big coin', () => {
+	const { world, queue } = scriptedWorld();
+	world.addPlayer('a');
+	world.setPlayerPosition('a', { x: 100, y: 400 });
+	world.setBigCoin({ x: 320, y: 262.5 });
+	world.setCoinPosition({ x: 100, y: 400 });
+	queue.push(0.5, 0.5);
+	world.step();
+	const snap = world.snapshot(0);
+	expect(snap.players[0]?.score).toBe(1);
+	expect(circlesOverlap(snap.coin, COIN_RADIUS, snap.bigCoin!, BIG_COIN_RADIUS)).toBe(false);
+});
+
+test('a joining player never spawns on the big coin', () => {
+	const { world, queue } = scriptedWorld();
+	world.addPlayer('a');
+	world.setPlayerPosition('a', { x: 100, y: 400 });
+	world.setBigCoin({ x: 320, y: 262.5 });
+	queue.push(0.5, 0.5);
+	world.addPlayer('b');
+	const snap = world.snapshot(0);
+	const b = snap.players.find((p) => p.id === 'b')!;
+	expect(circlesOverlap(b, PLAYER_RADIUS, snap.bigCoin!, BIG_COIN_RADIUS)).toBe(false);
 });
