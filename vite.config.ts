@@ -16,5 +16,6 @@ export default defineConfig({
 	test: {
 		root: '.',
 		include: ['src/**/*.test.ts'],
+		env: { TZ: 'UTC' },
 	},
 });

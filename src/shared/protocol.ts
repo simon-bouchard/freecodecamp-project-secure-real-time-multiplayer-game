@@ -75,6 +75,9 @@ export interface Snapshot {
 
 export type RoundPhase = 'waiting' | 'playing' | 'results';
 
+/** Leaderboard time windows: today, this month, all time (server-local calendar). */
+export type Period = 'today' | 'month' | 'all';
+
 /** Round status; `endsAt` is the server time the phase ends (null while waiting). */
 export interface RoundState {
 	phase: RoundPhase;
