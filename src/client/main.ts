@@ -54,12 +54,19 @@ const steering = new PointerSteering(canvas, (event) =>
 );
 canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
+/** Start a dash if allowed; our own dash sound plays right away, without waiting for the server. */
+function dash(): void {
+	if (session.requestDash()) {
+		sounds.play(['dash'], theme.sounds);
+	}
+}
+
 /** Two presses on the game this close together (ms) are a double tap: dash. */
 const DOUBLE_TAP_MS = 300;
 let lastPress = -Infinity;
 canvas.addEventListener('pointerdown', (event) => {
 	if (event.timeStamp - lastPress < DOUBLE_TAP_MS) {
-		session.requestDash();
+		dash();
 	}
 	lastPress = event.timeStamp;
 });
@@ -70,7 +77,7 @@ window.addEventListener('keydown', (event) => {
 		return;
 	}
 	event.preventDefault();
-	session.requestDash();
+	dash();
 });
 
 /** Held keys win; otherwise walk toward the touch target from where we predict we are. */

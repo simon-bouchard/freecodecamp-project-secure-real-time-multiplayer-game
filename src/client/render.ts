@@ -1,3 +1,4 @@
+import { PLAYER_RADIUS } from '../shared/constants.js';
 import type { ItemKind, Period, RoundState, Vec } from '../shared/protocol.js';
 import type { Theme } from './theme/types.js';
 
@@ -47,6 +48,20 @@ export interface FrameView {
 	touchTarget: Vec | null;
 	/** Text enlargement for small displays (1 at full size). */
 	textScale: number;
+	/** How recharged our dash is, 0 to 1 (1 = ready); null when not playing. */
+	dashCharge: number | null;
+}
+
+/** Ring around our player that fills while the dash recharges; brighter when ready. */
+function drawDashRing(ctx: CanvasRenderingContext2D, pos: Vec, charge: number): void {
+	const ready = charge >= 1;
+	ctx.save();
+	ctx.strokeStyle = ready ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.3)';
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.arc(pos.x, pos.y, PLAYER_RADIUS + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * charge);
+	ctx.stroke();
+	ctx.restore();
 }
 
 /** Faint ring at the touch target, the same in every theme. */
@@ -82,6 +97,10 @@ export function drawFrame(
 	const ordered = [...view.players].sort((a, b) => Number(a.self) - Number(b.self));
 	for (const player of ordered) {
 		theme.drawPlayer(ctx, player, now, view.textScale);
+	}
+	const self = view.players.find((p) => p.self);
+	if (self && view.dashCharge !== null && view.round?.phase === 'playing') {
+		drawDashRing(ctx, self, view.dashCharge);
 	}
 	if (view.touchTarget) {
 		drawTouchTarget(ctx, view.touchTarget);

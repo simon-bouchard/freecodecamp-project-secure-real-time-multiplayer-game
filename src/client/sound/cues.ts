@@ -10,6 +10,7 @@ export const SOUND_CUES = [
 	'slowGrab',
 	'slowed',
 	'bump',
+	'dash',
 	'roundStart',
 	'tick',
 	'lastTick',

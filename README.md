@@ -43,9 +43,10 @@ busy.
   the round start, the last 5 seconds, the round end and new personal bests. The server lists
   each tick's pickups in the snapshot, so sounds follow what really happened. Toggle with the
   Sound button next to the Theme menu.
-- **Controls**: arrow keys or WASD on a keyboard. On a phone or tablet, touch and hold where
-  you want to go and your player walks there; drag to steer. Mouse click-and-hold works too.
-  Phones get a stacked layout in portrait and an arena sized to the screen in landscape.
+- **Controls**: arrow keys or WASD on a keyboard, Space to dash. On a phone or tablet, touch
+  and hold where you want to go and your player walks there; drag to steer, double tap to dash.
+  Mouse click-and-hold works too. Phones get a stacked layout in portrait and an arena sized to
+  the screen in landscape.
 - **Join panel** with a name (1-12 characters) and one of 12 colours. Each colour can be used
   by one player, so a game holds up to 12 players. Your last name and colour are remembered.
   Until you join you watch the game as a spectator.
@@ -56,6 +57,9 @@ busy.
   connection drops, the client rejoins with it and keeps your colour, position and score.
 - **Big coins** worth 5 appear every 20-30 seconds and vanish after 5 seconds (they blink
   before they go).
+- **Dash**: Space (or a double tap on the game) bursts you forward at 3x speed for 0.15 s, then
+  needs 3 s to recharge (the ring around your player fills up). Ramming someone with a dash
+  shoves them hard. Your dash starts instantly on your screen; the server enforces the cooldown.
 - **Bumping**: players are solid and bounce off each other. The one who gets hit is shoved
   away harder the faster the other was running into them (a speed boost hits harder), and the
   shove fades over 0.3 s and bounces off walls. The server decides every bump; your own client

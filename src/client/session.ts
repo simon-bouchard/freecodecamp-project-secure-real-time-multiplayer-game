@@ -1,5 +1,10 @@
 import type { Socket } from 'socket.io-client';
-import { EFFECT_TICKS, RENDER_DELAY_MS, TICK_MS } from '../shared/constants.js';
+import {
+	DASH_COOLDOWN_TICKS,
+	EFFECT_TICKS,
+	RENDER_DELAY_MS,
+	TICK_MS,
+} from '../shared/constants.js';
 import { NO_MOVE, calculateRank, sortScoreboard } from '../shared/game.js';
 import type {
 	ClientToServerEvents,
@@ -195,8 +200,15 @@ export class GameSession {
 					? new Map(this.latestLeaderboard.highlights.map((h) => [h.playerId, h.period]))
 					: new Map(),
 			touchTarget: null,
+			dashCharge: selfId ? this.dashCharge(serverNow) : null,
 			textScale: 1,
 		};
+	}
+
+	private dashCharge(serverNow: number): number {
+		const total = DASH_COOLDOWN_TICKS * TICK_MS;
+		const left = this.predictor.dashReadyAt - serverNow;
+		return Math.min(1, Math.max(0, 1 - left / total));
 	}
 
 	/**

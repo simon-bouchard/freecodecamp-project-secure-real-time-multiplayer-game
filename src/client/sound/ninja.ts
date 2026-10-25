@@ -47,6 +47,7 @@ export const ninjaSounds: SoundSet = {
 		s.taiko(t, { freq: 90, dur: 0.25, gain: 0.5 });
 		s.clack(t, { freq: 900, gain: 0.3 });
 	},
+	dash: (s, t) => s.noise(t, { freq: 600, to: 3500, q: 1.5, gain: 0.9, dur: 0.12, attack: 0.04 }),
 	roundStart: (s, t) => {
 		s.taiko(t, { gain: 0.6 });
 		s.taiko(t + 0.25, { gain: 0.6 });
