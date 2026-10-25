@@ -4,9 +4,18 @@ import {
 	NAME_MAX_LENGTH,
 	PLAYER_RADIUS,
 	PLAYER_SPEED,
+	SLOW_FACTOR,
+	SPEED_BOOST,
 	innerBounds,
 } from './constants.js';
-import type { InputMessage, InputState, JoinRequest, Vec } from './protocol.js';
+import type { InputMessage, InputState, ItemKind, JoinRequest, Vec } from './protocol.js';
+
+/** A circle to keep spawns away from. */
+export interface Circle {
+	x: number;
+	y: number;
+	r: number;
+}
 
 export const NO_INPUT: InputState = { up: false, down: false, left: false, right: false };
 
@@ -19,14 +28,14 @@ export function clampToArena(pos: Vec, radius: number): Vec {
 	};
 }
 
-/** Advance a player by `dt` seconds of `input`; diagonals are normalised, then clamped. */
-export function movePlayer(pos: Vec, input: InputState, dt: number): Vec {
+/** Advance a player by `dt` seconds of `input` at a speed multiplier; diagonals normalised. */
+export function movePlayer(pos: Vec, input: InputState, dt: number, speedMultiplier = 1): Vec {
 	const dx = Number(input.right) - Number(input.left);
 	const dy = Number(input.down) - Number(input.up);
 	if (dx === 0 && dy === 0) {
 		return { x: pos.x, y: pos.y };
 	}
-	const step = (PLAYER_SPEED * dt) / Math.hypot(dx, dy);
+	const step = (PLAYER_SPEED * speedMultiplier * dt) / Math.hypot(dx, dy);
 	return clampToArena({ x: pos.x + dx * step, y: pos.y + dy * step }, PLAYER_RADIUS);
 }
 
@@ -43,16 +52,44 @@ export function randomPointInArena(radius: number, rng: () => number = Math.rand
 	return { x, y };
 }
 
-/** Random coin position not overlapping any player; gives up after a fixed number of tries. */
-export function pickCoinSpawn(players: Vec[], rng: () => number = Math.random): Vec {
-	let candidate = randomPointInArena(COIN_RADIUS, rng);
+/** Random position for a circle of `radius` not overlapping `avoid`; gives up after a few tries. */
+export function pickSpawn(radius: number, avoid: Circle[], rng: () => number = Math.random): Vec {
+	let candidate = randomPointInArena(radius, rng);
 	for (let attempt = 1; attempt < COIN_SPAWN_ATTEMPTS; attempt++) {
-		if (!players.some((p) => circlesOverlap(p, PLAYER_RADIUS, candidate, COIN_RADIUS))) {
+		if (!avoid.some((c) => circlesOverlap(c, c.r, candidate, radius))) {
 			return candidate;
 		}
-		candidate = randomPointInArena(COIN_RADIUS, rng);
+		candidate = randomPointInArena(radius, rng);
 	}
 	return candidate;
+}
+
+/** Random coin position not overlapping any player. */
+export function pickCoinSpawn(players: Vec[], rng: () => number = Math.random): Vec {
+	const avoid = players.map((p) => ({ x: p.x, y: p.y, r: PLAYER_RADIUS }));
+	return pickSpawn(COIN_RADIUS, avoid, rng);
+}
+
+/** Combined movement speed factor of a player's active effects. */
+export function speedMultiplier(kinds: Iterable<ItemKind>): number {
+	let factor = 1;
+	for (const kind of kinds) {
+		if (kind === 'speed') factor *= SPEED_BOOST;
+		if (kind === 'slow') factor *= SLOW_FACTOR;
+	}
+	return factor;
+}
+
+/** Move `pos` up to `maxStep` toward `target` without overshooting, kept inside the arena. */
+export function pullToward(pos: Vec, target: Vec, maxStep: number, radius: number): Vec {
+	const dx = target.x - pos.x;
+	const dy = target.y - pos.y;
+	const distance = Math.hypot(dx, dy);
+	const next =
+		distance <= maxStep
+			? { x: target.x, y: target.y }
+			: { x: pos.x + (dx / distance) * maxStep, y: pos.y + (dy / distance) * maxStep };
+	return clampToArena(next, radius);
 }
 
 /** 1-based rank of player `id`; players with equal scores share a rank. */

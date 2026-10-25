@@ -9,8 +9,11 @@ import {
 	movePlayer,
 	normalizeName,
 	pickCoinSpawn,
+	pickSpawn,
+	pullToward,
 	randomPointInArena,
 	sortScoreboard,
+	speedMultiplier,
 } from './game.js';
 
 describe('movePlayer', () => {
@@ -166,4 +169,49 @@ test('sortScoreboard orders by score, then name, without mutating', () => {
 	];
 	expect(sortScoreboard(players).map((p) => p.id)).toEqual(['3', '2', '1']);
 	expect(players.map((p) => p.id)).toEqual(['1', '2', '3']);
+});
+
+describe('boost maths', () => {
+	test('movePlayer applies a speed multiplier', () => {
+		expect(movePlayer({ x: 100, y: 100 }, { ...NO_INPUT, right: true }, 0.1, 1.5).x).toBeCloseTo(
+			145,
+		);
+	});
+
+	test.each([
+		[[], 1],
+		[['speed'], 1.5],
+		[['slow'], 0.5],
+		[['speed', 'slow'], 0.75],
+		[['magnet', 'double'], 1],
+	] as const)('speedMultiplier(%j) = %d', (kinds, expected) => {
+		expect(speedMultiplier(kinds)).toBeCloseTo(expected);
+	});
+
+	test('pickSpawn avoids circles and falls back after the attempt limit', () => {
+		const seq = [0, 0, 0.5, 0.5];
+		let i = 0;
+		const avoid = [{ x: 13, y: 58, r: 15 }];
+		expect(pickSpawn(COIN_RADIUS, avoid, () => seq[i++] ?? 0.5)).toEqual(
+			randomPointInArena(COIN_RADIUS, () => 0.5),
+		);
+		let calls = 0;
+		const fallback = pickSpawn(COIN_RADIUS, avoid, () => {
+			calls++;
+			return 0;
+		});
+		expect(fallback).toEqual({ x: 13, y: 58 });
+		expect(calls).toBe(COIN_SPAWN_ATTEMPTS * 2);
+	});
+
+	test('pullToward moves up to the step and never past the target', () => {
+		expect(pullToward({ x: 100, y: 100 }, { x: 200, y: 100 }, 10, 7)).toEqual({ x: 110, y: 100 });
+		expect(pullToward({ x: 100, y: 100 }, { x: 200, y: 100 }, 500, 7)).toEqual({ x: 200, y: 100 });
+	});
+
+	test('pullToward stays inside the arena', () => {
+		const b = innerBounds(COIN_RADIUS);
+		const p = pullToward({ x: 20, y: 100 }, { x: -50, y: 100 }, 100, COIN_RADIUS);
+		expect(p.x).toBe(b.minX);
+	});
 });

@@ -74,3 +74,31 @@ export const NAME_MAX_LENGTH = 12;
 
 export const ROUND_TICKS = 60 * TICK_RATE;
 export const RESULTS_TICKS = 8 * TICK_RATE;
+
+export const BIG_COIN_RADIUS = 11;
+export const BIG_COIN_VALUE = 5;
+export const BIG_COIN_LIFETIME_TICKS = 5 * TICK_RATE;
+/** Inclusive range of ticks between big coins. */
+export const BIG_COIN_DELAY_TICKS = [20 * TICK_RATE, 30 * TICK_RATE] as const;
+
+export const ITEM_RADIUS = 10;
+export const ITEM_LIFETIME_TICKS = 10 * TICK_RATE;
+/** Inclusive range of ticks between boost items. */
+export const ITEM_DELAY_TICKS = [8 * TICK_RATE, 12 * TICK_RATE] as const;
+
+export const ITEM_KINDS = ['speed', 'magnet', 'double', 'slow'] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+
+/** How long each effect lasts once picked up. */
+export const EFFECT_TICKS: Record<ItemKind, number> = {
+	speed: 5 * TICK_RATE,
+	magnet: 6 * TICK_RATE,
+	double: 8 * TICK_RATE,
+	slow: 3 * TICK_RATE,
+};
+
+export const SPEED_BOOST = 1.5;
+export const SLOW_FACTOR = 0.5;
+export const MAGNET_RANGE = 120;
+/** Magnet pull speed in pixels per second. */
+export const MAGNET_PULL_SPEED = 300;

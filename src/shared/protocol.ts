@@ -1,3 +1,7 @@
+import type { ItemKind } from './constants.js';
+
+export type { ItemKind };
+
 export interface Vec {
 	x: number;
 	y: number;
@@ -26,6 +30,29 @@ export interface PlayerState {
 	y: number;
 	score: number;
 	lastSeq: number;
+}
+
+/** An active boost on a player; `endsAt` is server time in ms. */
+export interface EffectState {
+	kind: ItemKind;
+	endsAt: number;
+}
+
+/** The rare high-value coin; `expiresAt` is server time in ms. */
+export interface BigCoinState {
+	id: number;
+	x: number;
+	y: number;
+	expiresAt: number;
+}
+
+/** A boost waiting to be picked up; `expiresAt` is server time in ms. */
+export interface ItemState {
+	id: number;
+	kind: ItemKind;
+	x: number;
+	y: number;
+	expiresAt: number;
 }
 
 export interface CoinState {
