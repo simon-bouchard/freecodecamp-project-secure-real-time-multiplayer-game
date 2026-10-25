@@ -207,6 +207,12 @@ canvas {
 		width: 100%;
 		max-width: 640px;
 	}
+
+	/* The stage is shorter than the panel here; hang it from the top so its heading stays visible. */
+	.join-panel {
+		top: 8px;
+		transform: translateX(-50%);
+	}
 }
 
 /* Ninja theme: dark wood page, paper join panel, wood scoreboard. */
