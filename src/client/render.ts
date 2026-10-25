@@ -35,6 +35,19 @@ export interface FrameView {
 	scoreboard: ScoreRow[];
 	/** During results: players (by in-game id) who just set a new best, and in which period. */
 	highlights: Map<string, Period>;
+	/** Where the player is steering by touch, if they are. */
+	touchTarget: Vec | null;
+}
+
+/** Faint ring at the touch target, the same in every theme. */
+function drawTouchTarget(ctx: CanvasRenderingContext2D, target: Vec): void {
+	ctx.save();
+	ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.arc(target.x, target.y, 10, 0, Math.PI * 2);
+	ctx.stroke();
+	ctx.restore();
 }
 
 /** Draw one frame with `theme`; the local player is drawn last so it is on top. */
@@ -59,6 +72,9 @@ export function drawFrame(
 	const ordered = [...view.players].sort((a, b) => Number(a.self) - Number(b.self));
 	for (const player of ordered) {
 		theme.drawPlayer(ctx, player, now);
+	}
+	if (view.touchTarget) {
+		drawTouchTarget(ctx, view.touchTarget);
 	}
 	if (view.round?.phase === 'results') {
 		theme.drawResults(ctx, view);

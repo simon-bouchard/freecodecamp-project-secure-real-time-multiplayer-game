@@ -184,6 +184,7 @@ export class GameSession {
 				latest?.round.phase === 'results' && this.latestLeaderboard
 					? new Map(this.latestLeaderboard.highlights.map((h) => [h.playerId, h.period]))
 					: new Map(),
+			touchTarget: null,
 		};
 	}
 

@@ -1,8 +1,11 @@
 import { io } from 'socket.io-client';
+import { PLAYER_SPEED, TICK_DT } from '../shared/constants.js';
 import { inputToMove } from '../shared/game.js';
+import type { Move } from '../shared/protocol.js';
 import type { JoinFailure } from '../shared/protocol.js';
 import { fitCanvasToScreen } from './canvas.js';
 import { Keyboard } from './input.js';
+import { PointerSteering, moveToward, toGameCoords } from './steering.js';
 import { drawFrame } from './render.js';
 import { type GameSocket, GameSession } from './session.js';
 import {
@@ -40,6 +43,24 @@ const storage = (() => {
 
 const socket: GameSocket = io({ auth: { playerKey: loadOrCreatePlayerKey(storage) } });
 const keyboard = new Keyboard(window);
+const steering = new PointerSteering(canvas, (event) =>
+	toGameCoords(event.clientX, event.clientY, canvas.getBoundingClientRect()),
+);
+canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+
+/** Held keys win; otherwise walk toward the touch target from where we predict we are. */
+function readMove(): Move {
+	const keys = keyboard.state;
+	if (keys.up || keys.down || keys.left || keys.right) {
+		return inputToMove(keys);
+	}
+	const target = steering.target;
+	const position = session.predictor.position;
+	if (!target || !position) {
+		return { x: 0, y: 0 };
+	}
+	return moveToward(position, target, PLAYER_SPEED * TICK_DT * session.predictor.nextStepFactor());
+}
 const scoreboard = new Scoreboard(document.getElementById('scoreboard')!);
 const bestRuns = new BestRunsPanel(
 	document.querySelector<HTMLElement>('.best-runs')!,
@@ -47,15 +68,12 @@ const bestRuns = new BestRunsPanel(
 	(prefs) => saveBoardPrefs(storage, prefs),
 );
 const panel = new JoinPanel(document.getElementById('join-panel') as HTMLFormElement, join);
-const session = new GameSession(
-	socket,
-	() => inputToMove(keyboard.state),
-	(reason) =>
-		panel.show(
-			reason === 'color-taken'
-				? 'Your colour was taken while you were disconnected'
-				: JOIN_MESSAGES[reason],
-		),
+const session = new GameSession(socket, readMove, (reason) =>
+	panel.show(
+		reason === 'color-taken'
+			? 'Your colour was taken while you were disconnected'
+			: JOIN_MESSAGES[reason],
+	),
 );
 
 async function join(name: string, color: string): Promise<void> {
@@ -104,7 +122,7 @@ panel.show();
 function frame(now: number): void {
 	session.update(now);
 	const view = session.view(now);
-	drawFrame(ctx, view, theme, now);
+	drawFrame(ctx, { ...view, touchTarget: session.joined ? steering.target : null }, theme, now);
 	scoreboard.update(view.scoreboard);
 	bestRuns.update(session.leaderboard, Date.now());
 	if (panel.visible) {

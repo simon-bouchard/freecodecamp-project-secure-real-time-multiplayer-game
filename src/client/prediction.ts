@@ -92,6 +92,11 @@ export class Predictor {
 		this.offset = { x: 0, y: 0 };
 	}
 
+	/** Speed factor that will apply to the next local input (boosts and slows included). */
+	nextStepFactor(): number {
+		return this.factorAt(this.pending.length);
+	}
+
 	/** Speed factor for the input that will be the `index`-th unacknowledged one. */
 	private factorAt(index: number): number {
 		const active = [...this.remaining].filter(([, ticks]) => ticks > index).map(([kind]) => kind);

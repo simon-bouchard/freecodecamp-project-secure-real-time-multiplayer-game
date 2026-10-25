@@ -545,3 +545,11 @@ canvas {
 .join-panel {
 	z-index: 3;
 }
+
+/* Touching the game steers; it must never scroll, zoom or select the page. */
+#game-window {
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-touch-callout: none;
+}

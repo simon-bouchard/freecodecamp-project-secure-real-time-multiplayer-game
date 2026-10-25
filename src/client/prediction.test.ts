@@ -127,3 +127,11 @@ test('a half-length move is predicted at half speed and replayed the same way', 
 	expect(p.position?.x).toBeCloseTo(105);
 	expect(NO_MOVE).toEqual({ x: 0, y: 0 });
 });
+
+test('nextStepFactor reflects the effects that will apply to the next input', () => {
+	const p = new Predictor();
+	p.reconcile(withEffect(server(100, 0), 'speed', 1, 0), 0);
+	expect(p.nextStepFactor()).toBeCloseTo(1.5);
+	p.applyLocalInput(RIGHT);
+	expect(p.nextStepFactor()).toBeCloseTo(1);
+});
