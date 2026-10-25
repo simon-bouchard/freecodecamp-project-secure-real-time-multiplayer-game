@@ -1,9 +1,11 @@
 import { io } from 'socket.io-client';
 import type { JoinFailure } from '../shared/protocol.js';
+import { fitCanvasToScreen } from './canvas.js';
 import { Keyboard } from './input.js';
 import { drawFrame } from './render.js';
 import { type GameSocket, GameSession } from './session.js';
 import { loadProfile, saveProfile } from './storage.js';
+import { ninjaTheme } from './theme/ninja/index.js';
 import { JoinPanel, Scoreboard } from './ui.js';
 
 const JOIN_MESSAGES: Record<JoinFailure, string> = {
@@ -16,6 +18,8 @@ const JOIN_MESSAGES: Record<JoinFailure, string> = {
 
 const canvas = document.getElementById('game-window') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
+fitCanvasToScreen(canvas, ctx);
+window.addEventListener('resize', () => fitCanvasToScreen(canvas, ctx));
 const storage = (() => {
 	try {
 		return window.localStorage;
@@ -58,7 +62,7 @@ panel.show();
 function frame(now: number): void {
 	session.update(now);
 	const view = session.view(now);
-	drawFrame(ctx, view);
+	drawFrame(ctx, view, ninjaTheme, now);
 	scoreboard.update(view.scoreboard);
 	if (panel.visible) {
 		panel.setTaken(new Map(view.scoreboard.map((row) => [row.color, row.name])));
