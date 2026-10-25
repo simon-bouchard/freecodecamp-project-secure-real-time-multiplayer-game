@@ -13,7 +13,8 @@
 		"start": "node dist/server/server/index.js",
 		"test": "vitest run",
 		"typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"deploy": "scripts/deploy.sh"
 	},
 	"license": "MIT",
 	"dependencies": {

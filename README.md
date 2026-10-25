@@ -95,6 +95,16 @@ busy.
 
 ## Self-hosting
 
+### Deploying from your machine
+
+`npm run deploy` runs the tests and typecheck, builds, copies `dist/` and the package files to
+the server with rsync, runs `npm ci --omit=dev` there and restarts the systemd service. Copy
+`deploy.env.example` to `deploy.env` (git-ignored) and set the SSH host, the service's folder
+and its unit name first. It asks for your sudo password on the server to restart the service.
+Use `npm run deploy -- --skip-checks` to skip the tests. The server needs Node 24+.
+
+### Running it by hand
+
 On the machine that runs the game:
 
 ```sh
