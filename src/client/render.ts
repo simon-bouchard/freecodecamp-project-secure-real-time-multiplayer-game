@@ -42,6 +42,7 @@ export function drawFrame(
 	theme: Theme,
 	now: number,
 ): void {
+	theme.beginFrame?.(view, now);
 	theme.drawArena(ctx);
 	theme.drawHeader(ctx, view);
 	if (view.coin) {

@@ -124,9 +124,12 @@ function drawArena(ctx: CanvasRenderingContext2D): void {
 	CORNER_POSTS.forEach((post) => drawPost(ctx, post));
 }
 
-function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
+/** Drop smoke trails of players who left. */
+function beginFrame(view: FrameView): void {
 	smoke.forget(new Set(view.players.map((p) => p.id)));
+}
 
+function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillStyle = COLORS.wood;
 	ctx.fillRect(0, 0, CANVAS.width, 46);
 	ctx.fillStyle = COLORS.woodDark;
@@ -324,7 +327,11 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 
 /** The ninja theme: training ground, headband ninjas, narutomaki, ramen and paper tags. */
 export const ninjaTheme: Theme = {
-	name: 'ninja',
+	id: 'ninja',
+	bodyClass: 'theme-ninja',
+	joinNameLabel: 'Ninja name',
+	joinHint: 'WASD or arrow keys. Grab the narutomaki!',
+	beginFrame,
 	drawArena,
 	drawHeader,
 	drawPickup: drawNarutomaki,

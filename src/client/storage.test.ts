@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { PALETTE } from '../shared/constants.js';
-import { loadProfile, saveProfile } from './storage.js';
+import { loadProfile, loadThemeId, saveProfile, saveThemeId } from './storage.js';
 
 function memoryStorage(): Storage {
 	const data = new Map<string, string>();
@@ -50,4 +50,16 @@ test('bad JSON is ignored', () => {
 	const storage = memoryStorage();
 	storage.setItem('coin-race-profile', '{nope');
 	expect(loadProfile(storage)).toBeNull();
+});
+
+test('theme choice round-trips and unknown values fall back to the default', () => {
+	const storage = memoryStorage();
+	expect(loadThemeId(storage)).toBe('ninja');
+	saveThemeId(storage, 'classic');
+	expect(loadThemeId(storage)).toBe('classic');
+	storage.setItem('coin-race-theme', 'vaporwave');
+	expect(loadThemeId(storage)).toBe('ninja');
+	expect(loadThemeId(throwingStorage())).toBe('ninja');
+	expect(loadThemeId(null)).toBe('ninja');
+	expect(() => saveThemeId(throwingStorage(), 'classic')).not.toThrow();
 });

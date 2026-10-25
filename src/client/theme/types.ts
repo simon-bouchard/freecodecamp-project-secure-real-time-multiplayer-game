@@ -1,12 +1,19 @@
 import type { Vec } from '../../shared/protocol.js';
 import type { DrawnPlayer, FrameView } from '../render.js';
+import type { ThemeId } from './registry.js';
 
 /**
  * Everything that decides how the game looks. `drawFrame` calls these in order; a new visual
  * style is a new object implementing this interface (plus page CSS), with no game changes.
  */
 export interface Theme {
-	name: string;
+	id: ThemeId;
+	/** Class put on <body> so page CSS (panels, background) can follow the theme. */
+	bodyClass: string;
+	joinNameLabel: string;
+	joinHint: string;
+	/** Called once per frame before drawing, for themes that keep per-frame state. */
+	beginFrame?(view: FrameView, now: number): void;
 	/** Page background, floor and walls. */
 	drawArena(ctx: CanvasRenderingContext2D): void;
 	drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void;

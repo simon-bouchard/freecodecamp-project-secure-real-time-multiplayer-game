@@ -4,8 +4,9 @@ import { fitCanvasToScreen } from './canvas.js';
 import { Keyboard } from './input.js';
 import { drawFrame } from './render.js';
 import { type GameSocket, GameSession } from './session.js';
-import { loadProfile, saveProfile } from './storage.js';
-import { ninjaTheme } from './theme/ninja/index.js';
+import { loadProfile, loadThemeId, saveProfile, saveThemeId } from './storage.js';
+import { THEMES } from './theme/index.js';
+import { THEME_OPTIONS, type ThemeId, isThemeId } from './theme/registry.js';
 import { JoinPanel, Scoreboard } from './ui.js';
 
 const JOIN_MESSAGES: Record<JoinFailure, string> = {
@@ -53,6 +54,33 @@ async function join(name: string, color: string): Promise<void> {
 	}
 }
 
+const themeSelects = [...document.querySelectorAll<HTMLSelectElement>('.theme-select')];
+let theme = THEMES[loadThemeId(storage)];
+
+/** Switch the theme everywhere: canvas art, page styling, join panel wording, both dropdowns. */
+function applyTheme(id: ThemeId): void {
+	theme = THEMES[id];
+	document.body.classList.remove(...Object.values(THEMES).map((t) => t.bodyClass));
+	document.body.classList.add(theme.bodyClass);
+	document.getElementById('join-name-label')!.textContent = theme.joinNameLabel;
+	document.getElementById('join-hint')!.textContent = theme.joinHint;
+	for (const select of themeSelects) {
+		select.value = id;
+	}
+}
+
+for (const select of themeSelects) {
+	select.append(...THEME_OPTIONS.map((t) => new Option(t.label, t.id)));
+	select.addEventListener('change', () => {
+		if (isThemeId(select.value)) {
+			applyTheme(select.value);
+			saveThemeId(storage, select.value);
+		}
+		select.blur();
+	});
+}
+applyTheme(theme.id);
+
 const saved = loadProfile(storage);
 if (saved) {
 	panel.setProfile(saved);
@@ -62,7 +90,7 @@ panel.show();
 function frame(now: number): void {
 	session.update(now);
 	const view = session.view(now);
-	drawFrame(ctx, view, ninjaTheme, now);
+	drawFrame(ctx, view, theme, now);
 	scoreboard.update(view.scoreboard);
 	if (panel.visible) {
 		panel.setTaken(new Map(view.scoreboard.map((row) => [row.color, row.name])));

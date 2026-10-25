@@ -51,6 +51,7 @@ test('arrow keys do not scroll the page', () => {
 test('isTextField recognises text inputs only', () => {
 	expect(isTextField({ tagName: 'INPUT' })).toBe(true);
 	expect(isTextField({ tagName: 'TEXTAREA' })).toBe(true);
+	expect(isTextField({ tagName: 'SELECT' })).toBe(true);
 	expect(isTextField({ tagName: 'CANVAS' })).toBe(false);
 	expect(isTextField(null)).toBe(false);
 	expect(isTextField(new EventTarget())).toBe(false);

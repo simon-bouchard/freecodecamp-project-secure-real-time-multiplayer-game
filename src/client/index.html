@@ -8,24 +8,32 @@
 		<link rel="icon" href="data:," />
 		<link rel="stylesheet" href="./style.css" />
 	</head>
-	<body class="theme-ninja">
+	<body>
 		<main class="layout">
 			<div class="stage">
 				<canvas id="game-window" width="640" height="480"></canvas>
 				<form id="join-panel" class="join-panel" autocomplete="off" hidden>
 					<h2>Join the race</h2>
-					<label for="join-name">Ninja name</label>
+					<label id="join-name-label" for="join-name">Name</label>
 					<input id="join-name" name="name" maxlength="12" />
 					<span class="label">Colour</span>
 					<div class="swatches" role="group" aria-label="Colour"></div>
 					<p class="join-error" role="alert"></p>
 					<button type="submit">Join game</button>
-					<p class="hint">WASD or arrow keys. Grab the narutomaki!</p>
+					<label class="theme-picker" for="join-theme"
+						>Theme
+						<select id="join-theme" class="theme-select"></select
+					></label>
+					<p id="join-hint" class="hint"></p>
 				</form>
 			</div>
 			<aside class="scoreboard">
 				<h2>Scoreboard</h2>
 				<ol id="scoreboard"></ol>
+				<label class="theme-picker" for="side-theme"
+					>Theme
+					<select id="side-theme" class="theme-select"></select
+				></label>
 			</aside>
 		</main>
 		<script type="module" src="./main.ts"></script>

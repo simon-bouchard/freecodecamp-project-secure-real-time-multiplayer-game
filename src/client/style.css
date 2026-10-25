@@ -311,3 +311,38 @@ canvas {
 .theme-ninja .scoreboard li.empty {
 	color: #a8906f;
 }
+
+.theme-picker {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+}
+
+.scoreboard .theme-picker {
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.theme-select {
+	flex: 1;
+	padding: 4px 6px;
+	font-size: 14px;
+	border-radius: 4px;
+	border: 1px solid #555;
+	background: #1d1d1d;
+	color: inherit;
+}
+
+.theme-ninja .join-panel .theme-select {
+	background: #fffaf0;
+	color: var(--ink);
+	border-color: #5a3a1a;
+}
+
+.theme-ninja .scoreboard .theme-select {
+	background: var(--wood-dark);
+	color: var(--cream);
+	border-color: #6b4a30;
+}

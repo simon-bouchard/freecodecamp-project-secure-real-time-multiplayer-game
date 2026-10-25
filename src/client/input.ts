@@ -13,10 +13,10 @@ const KEY_MAP: Record<string, Direction> = {
 	arrowright: 'right',
 };
 
-/** True for text inputs, so typing a name does not move the player. */
+/** True for form fields, so typing a name or picking a theme does not move the player. */
 export function isTextField(target: unknown): boolean {
 	const tag = (target as { tagName?: unknown } | null)?.tagName;
-	return tag === 'INPUT' || tag === 'TEXTAREA';
+	return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
 /** Tracks held direction keys (WASD and arrows); everything is released on blur. */
