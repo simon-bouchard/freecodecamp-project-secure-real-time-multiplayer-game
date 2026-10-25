@@ -47,8 +47,10 @@ npm run build
 
 echo "==> Copy to $DEPLOY_HOST:$DEPLOY_DIR"
 ssh "$DEPLOY_HOST" "mkdir -p '$DEPLOY_DIR'"
-rsync -az --delete dist/ "$DEPLOY_HOST:$DEPLOY_DIR/dist/"
-rsync -az package.json package-lock.json "$DEPLOY_HOST:$DEPLOY_DIR/"
+# Keep the server's own owner and group; our SSH user may not be allowed to change them.
+RSYNC=(rsync -az --no-owner --no-group)
+"${RSYNC[@]}" --delete dist/ "$DEPLOY_HOST:$DEPLOY_DIR/dist/"
+"${RSYNC[@]}" package.json package-lock.json "$DEPLOY_HOST:$DEPLOY_DIR/"
 
 echo "==> Install production dependencies and restart $DEPLOY_SERVICE"
 ssh -t "$DEPLOY_HOST" "cd '$DEPLOY_DIR' && npm ci --omit=dev --no-audit --no-fund \
