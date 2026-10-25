@@ -31,10 +31,9 @@ busy.
 - **Ninja look**: headband ninjas on a sandy training ground. Grab narutomaki slices (1 point)
   and the steaming ramen bowl (5 points); boosts are paper tags. An original, ninja-inspired
   design, not based on any franchise artwork.
-- **Themes**: pick **Ninja**, **Classic** (the original yellow-vs-red smileys) or **Flat** (plain
-  discs on dark slate) from the
-  Theme menu on the join screen or under the scoreboard. It only changes your own screen and
-  is remembered in your browser.
+- **Themes**: pick **Ninja**, **Classic** (the original yellow-vs-red smileys) or **Flat**
+  (plain discs on dark slate) from the Theme menu on the join screen or under the scoreboard.
+  It only changes your own screen and is remembered in your browser.
 
 - **Join panel** with a name (1-12 characters) and one of 12 colours. Each colour can be used
   by one player, so a game holds up to 12 players. Your last name and colour are remembered.
