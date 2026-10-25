@@ -1,11 +1,15 @@
 import {
 	COIN_RADIUS,
 	COIN_SPAWN_ATTEMPTS,
+	KNOCK_DECAY,
+	KNOCK_STOP,
 	NAME_MAX_LENGTH,
 	PLAYER_RADIUS,
 	PLAYER_SPEED,
 	SLOW_FACTOR,
 	SPEED_BOOST,
+	TICK_DT,
+	WALL_BOUNCE,
 	innerBounds,
 } from './constants.js';
 import type { InputMessage, InputState, ItemKind, JoinRequest, Move, Vec } from './protocol.js';
@@ -40,6 +44,22 @@ export function movePlayer(pos: Vec, move: Move, dt: number, speedMultiplier = 1
 	}
 	const step = (PLAYER_SPEED * speedMultiplier * dt * Math.min(1, length)) / length;
 	return clampToArena({ x: pos.x + move.x * step, y: pos.y + move.y * step }, PLAYER_RADIUS);
+}
+
+/**
+ * One tick of knockback: move by it, bounce off walls (reversing and damping that axis), then
+ * let it fade. Shared by server and client so prediction replays it exactly.
+ */
+export function knockStep(pos: Vec, knock: Vec): { pos: Vec; knock: Vec } {
+	if (knock.x === 0 && knock.y === 0) {
+		return { pos: { x: pos.x, y: pos.y }, knock: { x: 0, y: 0 } };
+	}
+	const moved = { x: pos.x + knock.x * TICK_DT, y: pos.y + knock.y * TICK_DT };
+	const clamped = clampToArena(moved, PLAYER_RADIUS);
+	const kx = (clamped.x === moved.x ? knock.x : -knock.x * WALL_BOUNCE) * KNOCK_DECAY;
+	const ky = (clamped.y === moved.y ? knock.y : -knock.y * WALL_BOUNCE) * KNOCK_DECAY;
+	const stopped = Math.hypot(kx, ky) < KNOCK_STOP;
+	return { pos: clamped, knock: stopped ? { x: 0, y: 0 } : { x: kx, y: ky } };
 }
 
 /** Direction for held keys: unit length, diagonals normalised, opposite keys cancel. */

@@ -22,6 +22,7 @@ function snap(
 		score: 0,
 		lastSeq: 0,
 		effects: [],
+		knock: { x: 0, y: 0 },
 	});
 	return {
 		tick: time,

@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { COIN_RADIUS, COIN_SPAWN_ATTEMPTS, PALETTE, innerBounds } from './constants.js';
+import {
+	COIN_RADIUS,
+	COIN_SPAWN_ATTEMPTS,
+	KNOCK_DECAY,
+	PALETTE,
+	PLAYER_RADIUS,
+	TICK_DT,
+	innerBounds,
+} from './constants.js';
 import {
 	NO_INPUT,
 	NO_MOVE,
@@ -8,6 +16,7 @@ import {
 	inputToMove,
 	isPlayerKey,
 	isValidJoinRequest,
+	knockStep,
 	movePlayer,
 	normalizeName,
 	parseInputMessage,
@@ -271,5 +280,36 @@ describe('isPlayerKey', () => {
 		undefined,
 	])('rejects %j', (value) => {
 		expect(isPlayerKey(value)).toBe(false);
+	});
+});
+
+describe('knockStep', () => {
+	test('moves by the knock for one tick, then decays it', () => {
+		const { pos, knock } = knockStep({ x: 300, y: 300 }, { x: 820, y: 0 });
+		expect(pos.x).toBeCloseTo(300 + 820 * TICK_DT);
+		expect(knock.x).toBeCloseTo(820 * KNOCK_DECAY);
+	});
+
+	test('fades to 5% over 0.3 seconds and stops once tiny', () => {
+		let state = { pos: { x: 100, y: 300 }, knock: { x: 820, y: 0 } };
+		for (let i = 0; i < 9; i++) state = knockStep(state.pos, state.knock);
+		expect(state.knock.x).toBeCloseTo(820 * 0.05);
+		for (let i = 0; i < 60; i++) state = knockStep(state.pos, state.knock);
+		expect(state.knock).toEqual({ x: 0, y: 0 });
+	});
+
+	test('bounces off a wall, losing 40% of that axis', () => {
+		const { maxX } = innerBounds(PLAYER_RADIUS);
+		const { pos, knock } = knockStep({ x: maxX, y: 300 }, { x: 500, y: 100 });
+		expect(pos.x).toBe(maxX);
+		expect(knock.x).toBeCloseTo(-300 * KNOCK_DECAY);
+		expect(knock.y).toBeCloseTo(100 * KNOCK_DECAY);
+	});
+
+	test('no knock means no movement', () => {
+		expect(knockStep({ x: 300, y: 300 }, { x: 0, y: 0 })).toEqual({
+			pos: { x: 300, y: 300 },
+			knock: { x: 0, y: 0 },
+		});
 	});
 });

@@ -37,6 +37,8 @@ export interface PlayerState {
 	score: number;
 	lastSeq: number;
 	effects: EffectState[];
+	/** Knockback velocity in px/s from a bump; fades every tick. */
+	knock: Vec;
 }
 
 /** An active boost on a player; `endsAt` is server time in ms. */
@@ -72,7 +74,8 @@ export interface CoinState {
 export type GameEvent =
 	| { kind: 'coin'; playerId: string }
 	| { kind: 'bigCoin'; playerId: string }
-	| { kind: 'item'; item: ItemKind; playerId: string };
+	| { kind: 'item'; item: ItemKind; playerId: string }
+	| { kind: 'bump'; playerId: string; otherId: string };
 
 /** Full game state broadcast once per server tick; `time` is server ms. */
 export interface Snapshot {

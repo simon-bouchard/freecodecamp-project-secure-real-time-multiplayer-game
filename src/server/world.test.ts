@@ -3,12 +3,15 @@ import {
 	BIG_COIN_DELAY_TICKS,
 	BIG_COIN_LIFETIME_TICKS,
 	BIG_COIN_RADIUS,
+	BUMP_BASE,
+	BUMP_STRENGTH,
 	COIN_RADIUS,
 	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
 	ITEM_DELAY_TICKS,
 	ITEM_KINDS,
 	ITEM_LIFETIME_TICKS,
+	KNOCK_DECAY,
 	MAX_BOARD_ITEMS,
 	MAX_INPUT_CREDITS,
 	MAX_PLAYERS,
@@ -16,10 +19,12 @@ import {
 	PLAYER_RADIUS,
 	RESULTS_TICKS,
 	ROUND_TICKS,
+	TICK_DT,
 	TICK_MS,
+	innerBounds,
 } from '../shared/constants.js';
 import { NO_MOVE, circlesOverlap } from '../shared/game.js';
-import type { Move } from '../shared/protocol.js';
+import type { Move, Vec } from '../shared/protocol.js';
 import { World } from './world.js';
 
 const RIGHT: Move = { x: 1, y: 0 };
@@ -710,4 +715,97 @@ test('a new boost is never the same kind as one already on the board', () => {
 			expect(kinds.length).toBeLessThanOrEqual(MAX_BOARD_ITEMS);
 		}
 	}
+});
+
+function bumpWorld(a: Vec, b: Vec): World {
+	const world = new World(() => 0);
+	world.addPlayer('a');
+	world.addPlayer('b');
+	world.setPlayerPosition('a', a);
+	world.setPlayerPosition('b', b);
+	world.setCoinPosition({ x: 600, y: 440 });
+	return world;
+}
+
+function knockOf(world: World, id: string): Vec {
+	const p = world.snapshot(0).players.find((pl) => pl.id === id);
+	if (!p) throw new Error(`no player ${id}`);
+	return p.knock;
+}
+
+test('running into a still player shoves them hard and the runner barely', () => {
+	const world = bumpWorld({ x: 300, y: 300 }, { x: 331, y: 300 });
+	world.queueInput('a', { seq: 1, move: RIGHT });
+	world.step();
+	expect(knockOf(world, 'b').x).toBeCloseTo(BUMP_BASE + BUMP_STRENGTH);
+	expect(knockOf(world, 'a').x).toBeCloseTo(-BUMP_BASE);
+	expect(world.snapshot(0).events).toEqual([{ kind: 'bump', playerId: 'a', otherId: 'b' }]);
+});
+
+test('head-on at full speed both bounce the same', () => {
+	const world = bumpWorld({ x: 300, y: 300 }, { x: 345, y: 300 });
+	world.queueInput('a', { seq: 1, move: RIGHT });
+	world.queueInput('b', { seq: 1, move: { x: -1, y: 0 } });
+	world.step();
+	expect(knockOf(world, 'a').x).toBeCloseTo(-820);
+	expect(knockOf(world, 'b').x).toBeCloseTo(820);
+});
+
+test('a speed boost hits harder and a slow hits softer', () => {
+	const boosted = bumpWorld({ x: 300, y: 300 }, { x: 340, y: 300 });
+	boosted.setEffect('a', 'speed', 100);
+	boosted.queueInput('a', { seq: 1, move: RIGHT });
+	boosted.step();
+	expect(knockOf(boosted, 'b').x).toBeCloseTo(1170);
+
+	const slowed = bumpWorld({ x: 300, y: 300 }, { x: 333, y: 300 });
+	slowed.setEffect('a', 'slow', 100);
+	slowed.queueInput('a', { seq: 1, move: RIGHT });
+	slowed.step();
+	expect(knockOf(slowed, 'b').x).toBeCloseTo(470);
+});
+
+test('still players that overlap are separated without a shove', () => {
+	const world = bumpWorld({ x: 300, y: 300 }, { x: 310, y: 300 });
+	world.step();
+	const [a, b] = world.snapshot(0).players;
+	expect(Math.hypot(a!.x - b!.x, a!.y - b!.y)).toBeGreaterThanOrEqual(2 * PLAYER_RADIUS - 1e-9);
+	expect(a!.knock).toEqual({ x: 0, y: 0 });
+	expect(b!.knock).toEqual({ x: 0, y: 0 });
+	expect(world.snapshot(0).events).toEqual([]);
+});
+
+test('a pinned pair still ends apart and inside the arena', () => {
+	const { maxX } = innerBounds(PLAYER_RADIUS);
+	const world = bumpWorld({ x: maxX - 31, y: 300 }, { x: maxX, y: 300 });
+	for (let seq = 1; seq <= 15; seq++) {
+		world.queueInput('a', { seq, move: RIGHT });
+		world.step();
+		const [a, b] = world.snapshot(0).players;
+		expect(Math.hypot(a!.x - b!.x, a!.y - b!.y)).toBeGreaterThanOrEqual(2 * PLAYER_RADIUS - 1e-6);
+		for (const p of [a!, b!]) {
+			expect(p.x).toBeLessThanOrEqual(maxX + 1e-9);
+		}
+	}
+});
+
+test('knockback keeps moving a player on the following ticks', () => {
+	const world = bumpWorld({ x: 300, y: 300 }, { x: 300, y: 420 });
+	world.setKnock('a', { x: 600, y: 0 });
+	world.step();
+	expect(playerX(world, 'a')).toBeCloseTo(300 + 600 * TICK_DT);
+	expect(knockOf(world, 'a').x).toBeCloseTo(600 * KNOCK_DECAY);
+});
+
+test('round end clears knockback and results have no bumps', () => {
+	const world = bumpWorld({ x: 300, y: 300 }, { x: 300, y: 420 });
+	steps(world, ROUND_TICKS - 1);
+	world.setKnock('a', { x: 800, y: 0 });
+	world.step();
+	expect(world.phase).toBe('results');
+	expect(knockOf(world, 'a')).toEqual({ x: 0, y: 0 });
+	world.setPlayerPosition('b', { x: playerX(world, 'a') + 5, y: 300 });
+	world.step();
+	expect(world.snapshot(0).events).toEqual([]);
+	expect(knockOf(world, 'b')).toEqual({ x: 0, y: 0 });
 });

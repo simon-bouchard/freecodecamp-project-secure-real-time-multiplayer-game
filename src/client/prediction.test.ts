@@ -7,7 +7,17 @@ import { Predictor } from './prediction.js';
 const RIGHT = { x: 1, y: 0 };
 
 function server(x: number, lastSeq: number): PlayerState {
-	return { id: 'me', name: 'me', color: '#ff4d4d', x, y: 100, score: 0, lastSeq, effects: [] };
+	return {
+		id: 'me',
+		name: 'me',
+		color: '#ff4d4d',
+		x,
+		y: 100,
+		score: 0,
+		lastSeq,
+		effects: [],
+		knock: { x: 0, y: 0 },
+	};
 }
 
 function predictorAfterThreeRights(): Predictor {

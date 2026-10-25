@@ -4,7 +4,17 @@ import type { PlayerState, Snapshot } from '../shared/protocol.js';
 import { SnapshotBuffer } from './interpolation.js';
 
 function player(id: string, x: number): PlayerState {
-	return { id, name: id, color: '#ff4d4d', x, y: 200, score: 0, lastSeq: 0, effects: [] };
+	return {
+		id,
+		name: id,
+		color: '#ff4d4d',
+		x,
+		y: 200,
+		score: 0,
+		lastSeq: 0,
+		effects: [],
+		knock: { x: 0, y: 0 },
+	};
 }
 
 function snap(time: number, players: PlayerState[]): Snapshot {

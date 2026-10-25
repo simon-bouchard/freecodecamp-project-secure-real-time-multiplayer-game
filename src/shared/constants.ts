@@ -99,6 +99,18 @@ export const EFFECT_TICKS: Record<ItemKind, number> = {
 	slow: 3 * TICK_RATE,
 };
 
+/** Every bump shoves both players at least this much, in px/s. */
+export const BUMP_BASE = 120;
+/** Extra shove in px/s when the other player ran into you at full speed (scales with speed). */
+export const BUMP_STRENGTH = 700;
+/** Knockback fades to 5% over this many seconds. */
+export const KNOCK_FADE_S = 0.3;
+export const KNOCK_DECAY = 0.05 ** (TICK_DT / KNOCK_FADE_S);
+/** Knockback below this speed (px/s) stops. */
+export const KNOCK_STOP = 2;
+/** Share of knockback speed kept when bouncing off a wall. */
+export const WALL_BOUNCE = 0.6;
+
 export const SPEED_BOOST = 1.5;
 export const SLOW_FACTOR = 0.5;
 export const MAGNET_RANGE = 120;

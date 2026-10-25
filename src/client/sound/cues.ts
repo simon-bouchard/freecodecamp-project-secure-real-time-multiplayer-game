@@ -96,6 +96,9 @@ export class CueTracker {
 		}
 		const playing = players.some((p) => p.id === selfId);
 		return events.flatMap((event): SoundCue[] => {
+			if (event.kind === 'bump') {
+				return [];
+			}
 			if (event.playerId !== selfId) {
 				return playing && isSlow(event) ? ['slowed'] : [];
 			}

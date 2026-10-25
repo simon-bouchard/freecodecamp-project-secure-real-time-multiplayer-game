@@ -4,6 +4,8 @@ import {
 	BIG_COIN_LIFETIME_TICKS,
 	BIG_COIN_RADIUS,
 	BIG_COIN_VALUE,
+	BUMP_BASE,
+	BUMP_STRENGTH,
 	COIN_RADIUS,
 	EFFECT_TICKS,
 	INPUT_RATE_TOLERANCE,
@@ -19,6 +21,7 @@ import {
 	MAX_QUEUED_INPUTS,
 	PALETTE,
 	PLAYER_RADIUS,
+	PLAYER_SPEED,
 	RESULTS_TICKS,
 	ROUND_TICKS,
 	TICK_DT,
@@ -27,6 +30,8 @@ import {
 import {
 	type Circle,
 	circlesOverlap,
+	clampToArena,
+	knockStep,
 	movePlayer,
 	normalizeName,
 	pickCoinSpawn,
@@ -66,6 +71,8 @@ interface PlayerEntry {
 	queue: InputMessage[];
 	credits: number;
 	highestSeq: number;
+	/** Velocity (px/s) from this tick's own inputs, used to size bumps. */
+	steer: Vec;
 	token: string;
 	/** Secret per-browser leaderboard key, or null for players without one. */
 	key: string | null;
@@ -141,6 +148,7 @@ export class World {
 			score: 0,
 			lastSeq: 0,
 			effects: [],
+			knock: { x: 0, y: 0 },
 		};
 		const entry: PlayerEntry = {
 			state,
@@ -148,6 +156,7 @@ export class World {
 			queue: [],
 			credits: MAX_INPUT_CREDITS,
 			highestSeq: 0,
+			steer: { x: 0, y: 0 },
 			token: '',
 			key,
 		};
@@ -218,6 +227,8 @@ export class World {
 
 		if (this.roundPhase === 'playing') {
 			this.applyInputs();
+			this.applyKnockback();
+			this.resolveBumps();
 			this.tickEffects();
 			this.applyMagnets();
 			this.updateBigCoin();
@@ -246,6 +257,7 @@ export class World {
 			time,
 			players: [...this.players.values()].map((e) => ({
 				...e.state,
+				knock: { ...e.state.knock },
 				effects: [...e.effects].map(([kind, ticks]) => ({
 					kind,
 					endsAt: time + ticks * TICK_MS,
@@ -318,6 +330,14 @@ export class World {
 		return this.players.get(id)?.effects ?? new Map();
 	}
 
+	/** Test hook: set a player's knockback velocity. */
+	setKnock(id: string, knock: Vec): void {
+		const entry = this.players.get(id);
+		if (entry) {
+			entry.state.knock = { ...knock };
+		}
+	}
+
 	/** Test hook: set a player's score. */
 	setScore(id: string, score: number): void {
 		const entry = this.players.get(id);
@@ -329,6 +349,7 @@ export class World {
 	private applyInputs(): void {
 		for (const entry of this.players.values()) {
 			entry.credits = Math.min(entry.credits + INPUT_RATE_TOLERANCE, MAX_INPUT_CREDITS);
+			const start = { x: entry.state.x, y: entry.state.y };
 			while (entry.credits >= 1 && entry.queue.length > 0) {
 				const msg = entry.queue.shift()!;
 				const factor = speedMultiplier(entry.effects.keys());
@@ -337,6 +358,54 @@ export class World {
 				entry.state.y = pos.y;
 				entry.state.lastSeq = msg.seq;
 				entry.credits--;
+			}
+			entry.steer = {
+				x: (entry.state.x - start.x) / TICK_DT,
+				y: (entry.state.y - start.y) / TICK_DT,
+			};
+		}
+	}
+
+	/** One tick of every player's knockback (shared with client prediction). */
+	private applyKnockback(): void {
+		for (const { state } of this.players.values()) {
+			const { pos, knock } = knockStep(state, state.knock);
+			state.x = pos.x;
+			state.y = pos.y;
+			state.knock = knock;
+		}
+	}
+
+	/**
+	 * Push overlapping players apart. A pair moving into each other also shoves each player away,
+	 * harder the faster the other one was steering into them.
+	 */
+	private resolveBumps(): void {
+		const entries = [...this.players.values()];
+		for (let i = 0; i < entries.length; i++) {
+			for (let j = i + 1; j < entries.length; j++) {
+				const a = entries[i]!;
+				const b = entries[j]!;
+				const dx = b.state.x - a.state.x;
+				const dy = b.state.y - a.state.y;
+				const dist = Math.hypot(dx, dy);
+				if (dist >= 2 * PLAYER_RADIUS) {
+					continue;
+				}
+				const n = dist === 0 ? { x: 1, y: 0 } : { x: dx / dist, y: dy / dist };
+				separate(a.state, b.state, n);
+				const relX = a.steer.x + a.state.knock.x - b.steer.x - b.state.knock.x;
+				const relY = a.steer.y + a.state.knock.y - b.steer.y - b.state.knock.y;
+				if (relX * n.x + relY * n.y <= 0) {
+					continue;
+				}
+				const aInto = Math.max(0, a.steer.x * n.x + a.steer.y * n.y);
+				const bInto = Math.max(0, -(b.steer.x * n.x + b.steer.y * n.y));
+				const toB = BUMP_BASE + (BUMP_STRENGTH * aInto) / PLAYER_SPEED;
+				const toA = BUMP_BASE + (BUMP_STRENGTH * bInto) / PLAYER_SPEED;
+				b.state.knock = { x: n.x * toB, y: n.y * toB };
+				a.state.knock = { x: -n.x * toA, y: -n.y * toA };
+				this.events.push({ kind: 'bump', playerId: a.state.id, otherId: b.state.id });
 			}
 		}
 	}
@@ -518,8 +587,9 @@ export class World {
 	private clearExtras(): void {
 		this.bigCoin = null;
 		this.items = [];
-		for (const { effects } of this.players.values()) {
+		for (const { effects, state } of this.players.values()) {
 			effects.clear();
+			state.knock = { x: 0, y: 0 };
 		}
 	}
 
@@ -589,5 +659,30 @@ export class World {
 	private freeColor(): string {
 		const taken = new Set([...this.players.values()].map((e) => e.state.color));
 		return PALETTE.find((c) => !taken.has(c)) ?? PALETTE[0]!;
+	}
+}
+
+/**
+ * Move two overlapping players apart along `n` (from a to b), half each, without leaving the
+ * arena; if one is pinned against a wall, the other takes the rest.
+ */
+function separate(a: Vec, b: Vec, n: Vec): void {
+	const push = (p: Vec, dir: number, amount: number) => {
+		const moved = clampToArena(
+			{ x: p.x + n.x * dir * amount, y: p.y + n.y * dir * amount },
+			PLAYER_RADIUS,
+		);
+		p.x = moved.x;
+		p.y = moved.y;
+	};
+	const gap = () => 2 * PLAYER_RADIUS - Math.hypot(b.x - a.x, b.y - a.y);
+	const overlap = gap();
+	push(a, -1, overlap / 2);
+	push(b, 1, overlap / 2);
+	if (gap() > 0) {
+		push(b, 1, gap());
+	}
+	if (gap() > 0) {
+		push(a, -1, gap());
 	}
 }
