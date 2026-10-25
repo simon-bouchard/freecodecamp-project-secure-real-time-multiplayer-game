@@ -45,16 +45,25 @@ fi
 echo "==> Build"
 npm run build
 
+# One shared SSH connection for every step, so the password is asked for only once.
+control_dir="$(mktemp -d)"
+SSH=(ssh -o ControlMaster=auto -o "ControlPath=$control_dir/%C" -o ControlPersist=120)
+cleanup() {
+	"${SSH[@]}" -O exit "$DEPLOY_HOST" 2>/dev/null || true
+	rm -rf "$control_dir"
+}
+trap cleanup EXIT
+
 echo "==> Copy to $DEPLOY_HOST:$DEPLOY_DIR"
-ssh "$DEPLOY_HOST" "mkdir -p '$DEPLOY_DIR'"
+"${SSH[@]}" "$DEPLOY_HOST" "mkdir -p '$DEPLOY_DIR'"
 # Copy contents and file times only: the server's folders may belong to another user, whose
 # owner, group, permissions and folder times our SSH user is not allowed to change.
-RSYNC=(rsync -rltz --omit-dir-times)
+RSYNC=(rsync -rltz --omit-dir-times -e "${SSH[*]}")
 "${RSYNC[@]}" --delete dist/ "$DEPLOY_HOST:$DEPLOY_DIR/dist/"
 "${RSYNC[@]}" package.json package-lock.json "$DEPLOY_HOST:$DEPLOY_DIR/"
 
 echo "==> Install production dependencies and restart $DEPLOY_SERVICE"
-ssh -t "$DEPLOY_HOST" "cd '$DEPLOY_DIR' && npm ci --omit=dev --no-audit --no-fund \
+"${SSH[@]}" -t "$DEPLOY_HOST" "cd '$DEPLOY_DIR' && npm ci --omit=dev --no-audit --no-fund \
 	&& sudo systemctl restart '$DEPLOY_SERVICE' && sleep 2 \
 	&& systemctl is-active '$DEPLOY_SERVICE'"
 
