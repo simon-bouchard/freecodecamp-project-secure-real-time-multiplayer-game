@@ -15,3 +15,10 @@ export function labelLayout(playerY: number): { nameY: number; tagsY: number } {
 	const below = playerY + PLAYER_RADIUS + NAME_GAP + 12;
 	return { nameY: below, tagsY: below + TAGS_ABOVE_NAME - 4 };
 }
+
+/** Horizontal centre for a label of `width` near `playerX`, kept inside the arena walls. */
+export function labelX(playerX: number, width: number): number {
+	const min = ARENA.x + 2 + width / 2;
+	const max = ARENA.x + ARENA.width - 2 - width / 2;
+	return Math.min(Math.max(playerX, min), max);
+}

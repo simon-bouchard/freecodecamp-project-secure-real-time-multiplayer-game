@@ -28,6 +28,10 @@ busy.
 
 ## Features
 
+- **Ninja look**: headband ninjas on a sandy training ground. Grab narutomaki slices (1 point)
+  and the steaming ramen bowl (5 points); boosts are paper tags. An original, ninja-inspired
+  design, not based on any franchise artwork.
+
 - **Join panel** with a name (1-12 characters) and one of 12 colours. Each colour can be used
   by one player, so a game holds up to 12 players. Your last name and colour are remembered.
   Until you join you watch the game as a spectator.
@@ -55,7 +59,8 @@ busy.
 | Fixed 30 Hz client ticks, sending input, reconnects                | `src/client/session.ts`, `src/client/fixed-step.ts`            |
 | Joining, rounds and rejoin tokens                                  | `src/server/world.ts`                                          |
 | Join panel, scoreboard, saved profile                              | `src/client/ui.ts`, `src/client/storage.ts`                    |
-| Drawing                                                            | `src/client/render.ts`, wired together in `src/client/main.ts` |
+| Drawing order and frame view                                       | `src/client/render.ts`, wired together in `src/client/main.ts` |
+| Visual themes (all art; add a theme by implementing `Theme`)       | `src/client/theme/`, ninja theme in `src/client/theme/ninja/`  |
 
 1. **Input.** Each client tick (30 per second) while a key is held, the client sends its key
    state with an increasing sequence number. It never sends a position or score.

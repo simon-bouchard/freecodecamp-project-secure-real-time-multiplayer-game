@@ -8,19 +8,19 @@
 		<link rel="icon" href="data:," />
 		<link rel="stylesheet" href="./style.css" />
 	</head>
-	<body>
+	<body class="theme-ninja">
 		<main class="layout">
 			<div class="stage">
 				<canvas id="game-window" width="640" height="480"></canvas>
 				<form id="join-panel" class="join-panel" autocomplete="off" hidden>
 					<h2>Join the race</h2>
-					<label for="join-name">Name</label>
+					<label for="join-name">Ninja name</label>
 					<input id="join-name" name="name" maxlength="12" />
 					<span class="label">Colour</span>
 					<div class="swatches" role="group" aria-label="Colour"></div>
 					<p class="join-error" role="alert"></p>
 					<button type="submit">Join game</button>
-					<p class="hint">Move with WASD or the arrow keys and grab the coins.</p>
+					<p class="hint">WASD or arrow keys. Grab the narutomaki!</p>
 				</form>
 			</div>
 			<aside class="scoreboard">

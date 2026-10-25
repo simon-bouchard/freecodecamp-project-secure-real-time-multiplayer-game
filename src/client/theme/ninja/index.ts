@@ -20,7 +20,7 @@ import {
 	tagSprite,
 } from './art.js';
 import { PAPER, mulberry32, readableOnPaper } from './geometry.js';
-import { labelLayout } from './layout.js';
+import { labelLayout, labelX } from './layout.js';
 import { SmokeTrail } from './smoke.js';
 
 const COLORS = {
@@ -177,10 +177,16 @@ function drawTag(ctx: CanvasRenderingContext2D, item: NonNullable<FrameView['ite
 	}
 }
 
-/** Mini paper tags with a timer bar for each active effect, in a row centred on `y`. */
-function drawEffects(ctx: CanvasRenderingContext2D, player: DrawnPlayer, y: number): void {
+/** Mini paper tags with a timer bar for each active effect, in a row centred on (`cx`, `y`). */
+function drawEffects(
+	ctx: CanvasRenderingContext2D,
+	player: DrawnPlayer,
+	cx: number,
+	y: number,
+): void {
 	const spacing = 12;
-	let x = player.x - (spacing * (player.effects.length - 1)) / 2;
+	const rowWidth = spacing * (player.effects.length - 1) + 10;
+	let x = labelX(cx, rowWidth) - (spacing * (player.effects.length - 1)) / 2;
 	for (const effect of player.effects) {
 		drawSprite(ctx, tagSprite(effect.kind), x, y, 0.5);
 		const fraction = Math.min(1, effect.remainingMs / effect.totalMs);
@@ -264,10 +270,11 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer, now: num
 	ctx.lineJoin = 'round';
 	ctx.strokeStyle = COLORS.nameHalo;
 	ctx.lineWidth = 3;
-	ctx.strokeText(player.name, player.x, nameY);
+	const nameX = labelX(player.x, ctx.measureText(player.name).width + 4);
+	ctx.strokeText(player.name, nameX, nameY);
 	ctx.fillStyle = COLORS.ink;
-	ctx.fillText(player.name, player.x, nameY);
-	drawEffects(ctx, player, tagsY);
+	ctx.fillText(player.name, nameX, nameY);
+	drawEffects(ctx, player, player.x, tagsY);
 }
 
 /** Results on an unrolled paper scroll with dark red rods. */
