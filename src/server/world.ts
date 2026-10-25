@@ -33,6 +33,7 @@ import {
 	clampToArena,
 	knockStep,
 	movePlayer,
+	moveVelocity,
 	normalizeName,
 	pickCoinSpawn,
 	pickSpawn,
@@ -71,7 +72,7 @@ interface PlayerEntry {
 	queue: InputMessage[];
 	credits: number;
 	highestSeq: number;
-	/** Velocity (px/s) from this tick's own inputs, used to size bumps. */
+	/** Velocity (px/s) of the last input applied, kept through ticks without input; sizes bumps. */
 	steer: Vec;
 	token: string;
 	/** Secret per-browser leaderboard key, or null for players without one. */
@@ -349,20 +350,16 @@ export class World {
 	private applyInputs(): void {
 		for (const entry of this.players.values()) {
 			entry.credits = Math.min(entry.credits + INPUT_RATE_TOLERANCE, MAX_INPUT_CREDITS);
-			const start = { x: entry.state.x, y: entry.state.y };
 			while (entry.credits >= 1 && entry.queue.length > 0) {
 				const msg = entry.queue.shift()!;
 				const factor = speedMultiplier(entry.effects.keys());
 				const pos = movePlayer(entry.state, msg.move, TICK_DT, factor);
+				entry.steer = moveVelocity(msg.move, factor);
 				entry.state.x = pos.x;
 				entry.state.y = pos.y;
 				entry.state.lastSeq = msg.seq;
 				entry.credits--;
 			}
-			entry.steer = {
-				x: (entry.state.x - start.x) / TICK_DT,
-				y: (entry.state.y - start.y) / TICK_DT,
-			};
 		}
 	}
 
@@ -587,9 +584,10 @@ export class World {
 	private clearExtras(): void {
 		this.bigCoin = null;
 		this.items = [];
-		for (const { effects, state } of this.players.values()) {
-			effects.clear();
-			state.knock = { x: 0, y: 0 };
+		for (const entry of this.players.values()) {
+			entry.effects.clear();
+			entry.state.knock = { x: 0, y: 0 };
+			entry.steer = { x: 0, y: 0 };
 		}
 	}
 

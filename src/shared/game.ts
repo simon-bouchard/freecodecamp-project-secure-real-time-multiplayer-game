@@ -38,12 +38,21 @@ export function clampToArena(pos: Vec, radius: number): Vec {
  * 1, so no direction is faster than `PLAYER_SPEED * speedMultiplier`.
  */
 export function movePlayer(pos: Vec, move: Move, dt: number, speedMultiplier = 1): Vec {
-	const length = Math.hypot(move.x, move.y);
-	if (length === 0) {
+	if (move.x === 0 && move.y === 0) {
 		return { x: pos.x, y: pos.y };
 	}
-	const step = (PLAYER_SPEED * speedMultiplier * dt * Math.min(1, length)) / length;
-	return clampToArena({ x: pos.x + move.x * step, y: pos.y + move.y * step }, PLAYER_RADIUS);
+	const v = moveVelocity(move, speedMultiplier);
+	return clampToArena({ x: pos.x + v.x * dt, y: pos.y + v.y * dt }, PLAYER_RADIUS);
+}
+
+/** Velocity in px/s a move asks for; never faster than `PLAYER_SPEED * speedMultiplier`. */
+export function moveVelocity(move: Move, speedMultiplier = 1): Vec {
+	const length = Math.hypot(move.x, move.y);
+	if (length === 0) {
+		return { x: 0, y: 0 };
+	}
+	const scale = (PLAYER_SPEED * speedMultiplier * Math.min(1, length)) / length;
+	return { x: move.x * scale, y: move.y * scale };
 }
 
 /**

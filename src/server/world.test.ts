@@ -809,3 +809,19 @@ test('round end clears knockback and results have no bumps', () => {
 	expect(world.snapshot(0).events).toEqual([]);
 	expect(knockOf(world, 'b')).toEqual({ x: 0, y: 0 });
 });
+
+test('several inputs applied in one tick do not hit harder', () => {
+	const world = bumpWorld({ x: 300, y: 300 }, { x: 345, y: 300 });
+	for (let seq = 1; seq <= 3; seq++) world.queueInput('a', { seq, move: RIGHT });
+	world.step();
+	expect(knockOf(world, 'b').x).toBeCloseTo(BUMP_BASE + BUMP_STRENGTH);
+});
+
+test('a tick whose input arrived late still bumps with the last steering', () => {
+	const world = bumpWorld({ x: 100, y: 300 }, { x: 400, y: 300 });
+	world.queueInput('a', { seq: 1, move: RIGHT });
+	world.step();
+	world.setPlayerPosition('a', { x: 375, y: 300 });
+	world.step();
+	expect(knockOf(world, 'b').x).toBeCloseTo(BUMP_BASE + BUMP_STRENGTH);
+});
