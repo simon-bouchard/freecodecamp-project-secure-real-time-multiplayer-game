@@ -13,3 +13,11 @@ export function winnerText(names: string[]): string {
 	}
 	return names.length === 1 ? `Winner: ${names[0]}` : `Tie: ${names.join(', ')}`;
 }
+
+/** Whether an expiring pickup is drawn this frame: steady, then blinking in its last 2 seconds. */
+export function blinkVisible(remainingMs: number): boolean {
+	if (remainingMs >= 2000) {
+		return true;
+	}
+	return Math.floor((2000 - remainingMs) / 150) % 2 === 0;
+}

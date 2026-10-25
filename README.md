@@ -36,6 +36,11 @@ busy.
 - **Scoreboard** beside the game, sorted by score, with your row highlighted.
 - **Reconnects take your player back.** A successful join returns a secret token; if your
   connection drops, the client rejoins with it and keeps your colour, position and score.
+- **Big coins** worth 5 appear every 20-30 seconds and vanish after 5 seconds (they blink
+  before they go).
+- **Boosts** appear one at a time and last 10 seconds on the board: speed (1.5x for 5 s),
+  magnet (pulls coins within 120 px for 6 s), double points (8 s) and slow others (everyone
+  else at half speed for 3 s). Different boosts stack; active ones show as icons by your name.
 
 ## How the netcode works
 
@@ -68,6 +73,10 @@ busy.
 6. **Interpolation.** Other players are drawn 100 ms in the past, blended between the two
    snapshots around that time, so they move smoothly even though updates arrive 30 times a
    second.
+7. **Boosted prediction.** Snapshots carry each effect's end time. The server applies one
+   input per tick, so when replaying, the i-th unconfirmed input only gets effects with more
+   than i ticks left. A speed boost therefore ends on the same input on both sides, with no
+   correction. Coins and boosts are interpolated like other players, so magnet pulls glide.
 
 ## Deploying on Render
 
