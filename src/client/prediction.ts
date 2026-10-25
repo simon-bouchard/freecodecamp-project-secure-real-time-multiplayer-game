@@ -1,6 +1,6 @@
 import { SNAP_DISTANCE, TICK_DT, TICK_MS } from '../shared/constants.js';
 import { movePlayer, speedMultiplier } from '../shared/game.js';
-import type { InputMessage, InputState, ItemKind, PlayerState, Vec } from '../shared/protocol.js';
+import type { InputMessage, ItemKind, Move, PlayerState, Vec } from '../shared/protocol.js';
 
 /** Time constant for correction smoothing; about 90% of an error is gone after 100 ms. */
 const SMOOTHING_TAU_MS = 100 / Math.LN10;
@@ -16,15 +16,15 @@ export class Predictor {
 	private remaining = new Map<ItemKind, number>();
 
 	/** Apply one tick of local input immediately; returns the message to send, or null. */
-	applyLocalInput(input: InputState): InputMessage | null {
+	applyLocalInput(move: Move): InputMessage | null {
 		if (!this.position) {
 			return null;
 		}
-		const msg: InputMessage = { seq: this.nextSeq++, input: { ...input } };
+		const msg: InputMessage = { seq: this.nextSeq++, move: { x: move.x, y: move.y } };
 		const factor = this.factorAt(this.pending.length);
 		this.pending.push(msg);
 		this.previous = this.position;
-		this.position = movePlayer(this.position, msg.input, TICK_DT, factor);
+		this.position = movePlayer(this.position, msg.move, TICK_DT, factor);
 		return msg;
 	}
 
@@ -44,7 +44,7 @@ export class Predictor {
 		this.pending = this.pending.filter((m) => m.seq > server.lastSeq);
 		let pos: Vec = { x: server.x, y: server.y };
 		this.pending.forEach((msg, i) => {
-			pos = movePlayer(pos, msg.input, TICK_DT, this.factorAt(i));
+			pos = movePlayer(pos, msg.move, TICK_DT, this.factorAt(i));
 		});
 
 		if (this.position && this.previous) {

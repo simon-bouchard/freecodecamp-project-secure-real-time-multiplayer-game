@@ -2,13 +2,15 @@ import { describe, expect, test } from 'vitest';
 import { COIN_RADIUS, COIN_SPAWN_ATTEMPTS, PALETTE, innerBounds } from './constants.js';
 import {
 	NO_INPUT,
+	NO_MOVE,
 	calculateRank,
 	circlesOverlap,
+	inputToMove,
 	isPlayerKey,
-	isValidInputMessage,
 	isValidJoinRequest,
 	movePlayer,
 	normalizeName,
+	parseInputMessage,
 	pickCoinSpawn,
 	pickSpawn,
 	pullToward,
@@ -18,30 +20,48 @@ import {
 } from './game.js';
 
 describe('movePlayer', () => {
-	test('moves right by speed * dt', () => {
-		expect(movePlayer({ x: 100, y: 100 }, { ...NO_INPUT, right: true }, 0.1)).toEqual({
-			x: 130,
-			y: 100,
-		});
+	test('moves along the direction by speed * dt', () => {
+		expect(movePlayer({ x: 100, y: 100 }, { x: 1, y: 0 }, 0.1)).toEqual({ x: 130, y: 100 });
 	});
 
-	test('diagonal is not faster', () => {
-		const p = movePlayer({ x: 300, y: 300 }, { ...NO_INPUT, right: true, down: true }, 0.1);
+	test('a shorter direction moves proportionally slower', () => {
+		const p = movePlayer({ x: 300, y: 300 }, { x: 0, y: 0.5 }, 0.1);
+		expect(p.y).toBeCloseTo(315);
+	});
+
+	test('a direction longer than 1 is capped at full speed', () => {
+		const p = movePlayer({ x: 300, y: 300 }, { x: 30, y: 40 }, 0.1);
 		expect(Math.hypot(p.x - 300, p.y - 300)).toBeCloseTo(30);
 	});
 
-	test('opposite keys cancel', () => {
-		const input = { up: true, down: true, left: false, right: false };
-		expect(movePlayer({ x: 300, y: 300 }, input, 1)).toEqual({ x: 300, y: 300 });
+	test('a zero direction stands still', () => {
+		expect(movePlayer({ x: 300, y: 300 }, NO_MOVE, 1)).toEqual({ x: 300, y: 300 });
 	});
 
 	test.each([
-		['up', { x: 300, y: 70 }, { x: 300, y: 66 }],
-		['down', { x: 300, y: 455 }, { x: 300, y: 459 }],
-		['left', { x: 25, y: 200 }, { x: 21, y: 200 }],
-		['right', { x: 615, y: 200 }, { x: 619, y: 200 }],
-	])('clamps at the %s wall', (dir, start, end) => {
-		expect(movePlayer(start, { ...NO_INPUT, [dir]: true }, 1)).toEqual(end);
+		['up', { x: 0, y: -1 }, { x: 300, y: 70 }, { x: 300, y: 66 }],
+		['down', { x: 0, y: 1 }, { x: 300, y: 455 }, { x: 300, y: 459 }],
+		['left', { x: -1, y: 0 }, { x: 25, y: 200 }, { x: 21, y: 200 }],
+		['right', { x: 1, y: 0 }, { x: 615, y: 200 }, { x: 619, y: 200 }],
+	])('clamps at the %s wall', (_name, move, start, end) => {
+		expect(movePlayer(start, move, 1)).toEqual(end);
+	});
+});
+
+describe('inputToMove', () => {
+	test('one key is a unit direction', () => {
+		expect(inputToMove({ ...NO_INPUT, right: true })).toEqual({ x: 1, y: 0 });
+		expect(inputToMove({ ...NO_INPUT, up: true })).toEqual({ x: 0, y: -1 });
+	});
+
+	test('diagonals are normalised so they are not faster', () => {
+		const m = inputToMove({ ...NO_INPUT, right: true, down: true });
+		expect(Math.hypot(m.x, m.y)).toBeCloseTo(1);
+		expect(m.x).toBeCloseTo(m.y);
+	});
+
+	test('opposite keys cancel', () => {
+		expect(inputToMove({ up: true, down: true, left: false, right: false })).toEqual(NO_MOVE);
 	});
 });
 
@@ -98,25 +118,45 @@ test('rank with ties', () => {
 	expect(calculateRank(ps, 'd')).toEqual({ rank: 4, total: 4 });
 });
 
-describe('isValidInputMessage', () => {
-	test('valid input accepted', () => {
-		expect(isValidInputMessage({ seq: 1, input: NO_INPUT })).toBe(true);
+describe('parseInputMessage', () => {
+	test('accepts a direction', () => {
+		expect(parseInputMessage({ seq: 1, move: { x: 0.6, y: 0.8 } })).toEqual({
+			seq: 1,
+			move: { x: 0.6, y: 0.8 },
+		});
+	});
+
+	test('caps a direction longer than 1 at length 1', () => {
+		const msg = parseInputMessage({ seq: 2, move: { x: 30, y: 40 } })!;
+		expect(msg.move.x).toBeCloseTo(0.6);
+		expect(msg.move.y).toBeCloseTo(0.8);
+	});
+
+	test('converts the old key-flag format from pages loaded before an update', () => {
+		expect(parseInputMessage({ seq: 3, input: { ...NO_INPUT, left: true } })).toEqual({
+			seq: 3,
+			move: { x: -1, y: 0 },
+		});
 	});
 
 	test.each([
 		null,
 		'x',
 		{},
-		{ seq: -1, input: NO_INPUT },
-		{ seq: 1.5, input: NO_INPUT },
-		{ seq: NaN, input: NO_INPUT },
-		{ seq: 1e20, input: NO_INPUT },
-		{ seq: '1', input: NO_INPUT },
-		{ seq: 1, input: null },
+		{ seq: -1, move: NO_MOVE },
+		{ seq: 1.5, move: NO_MOVE },
+		{ seq: NaN, move: NO_MOVE },
+		{ seq: 1e20, move: NO_MOVE },
+		{ seq: '1', move: NO_MOVE },
+		{ seq: 1, move: null },
+		{ seq: 1, move: { x: NaN, y: 0 } },
+		{ seq: 1, move: { x: Infinity, y: 0 } },
+		{ seq: 1, move: { x: '1', y: 0 } },
+		{ seq: 1, move: { x: 1 } },
 		{ seq: 1, input: { ...NO_INPUT, up: 'true' } },
 		{ seq: 1, input: { up: true } },
-	])('invalid input rejected: %j', (v) => {
-		expect(isValidInputMessage(v)).toBe(false);
+	])('rejects %j', (v) => {
+		expect(parseInputMessage(v)).toBeNull();
 	});
 });
 
@@ -174,9 +214,7 @@ test('sortScoreboard orders by score, then name, without mutating', () => {
 
 describe('boost maths', () => {
 	test('movePlayer applies a speed multiplier', () => {
-		expect(movePlayer({ x: 100, y: 100 }, { ...NO_INPUT, right: true }, 0.1, 1.5).x).toBeCloseTo(
-			145,
-		);
+		expect(movePlayer({ x: 100, y: 100 }, { x: 1, y: 0 }, 0.1, 1.5).x).toBeCloseTo(145);
 	});
 
 	test.each([

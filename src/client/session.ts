@@ -1,9 +1,9 @@
 import type { Socket } from 'socket.io-client';
 import { EFFECT_TICKS, RENDER_DELAY_MS, TICK_MS } from '../shared/constants.js';
-import { NO_INPUT, calculateRank, sortScoreboard } from '../shared/game.js';
+import { NO_MOVE, calculateRank, sortScoreboard } from '../shared/game.js';
 import type {
 	ClientToServerEvents,
-	InputState,
+	Move,
 	ItemState,
 	JoinFailure,
 	JoinRequest,
@@ -26,8 +26,8 @@ interface Profile {
 	token: string;
 }
 
-function sameInput(a: InputState, b: InputState): boolean {
-	return a.up === b.up && a.down === b.down && a.left === b.left && a.right === b.right;
+function sameMove(a: Move, b: Move): boolean {
+	return a.x === b.x && a.y === b.y;
 }
 
 /** Client-side game state: snapshots, prediction and sending input over the socket. */
@@ -35,7 +35,7 @@ export class GameSession {
 	readonly buffer = new SnapshotBuffer();
 	readonly predictor = new Predictor();
 	private readonly steps = new FixedStep(TICK_MS);
-	private lastSent: InputState = NO_INPUT;
+	private lastSent: Move = NO_MOVE;
 	private lastFrame: number | null = null;
 	private profile: Profile | null = null;
 	private isJoined = false;
@@ -44,7 +44,7 @@ export class GameSession {
 
 	constructor(
 		private readonly socket: GameSocket,
-		private readonly readInput: () => InputState,
+		private readonly readInput: () => Move,
 		private readonly onRejoinFailed?: (reason: JoinFailure) => void,
 		private readonly joinTimeoutMs = 5000,
 	) {
@@ -109,18 +109,18 @@ export class GameSession {
 
 	/** One client tick: predict and send the current input if a key is held or it changed. */
 	tick(): void {
-		const input = this.readInput();
-		const held = input.up || input.down || input.left || input.right;
+		const move = this.readInput();
+		const moving = move.x !== 0 || move.y !== 0;
 		const playing = this.buffer.latest()?.round.phase === 'playing';
-		const idle = !held && sameInput(input, this.lastSent);
+		const idle = !moving && sameMove(move, this.lastSent);
 		if (!this.socket.connected || !this.isJoined || !playing || idle) {
 			this.predictor.holdStill();
 			return;
 		}
-		const msg = this.predictor.applyLocalInput(input);
+		const msg = this.predictor.applyLocalInput(move);
 		if (msg) {
 			this.socket.emit('input', msg);
-			this.lastSent = msg.input;
+			this.lastSent = msg.move;
 		}
 	}
 
@@ -233,6 +233,6 @@ export class GameSession {
 	private reset(): void {
 		this.predictor.reset();
 		this.buffer.clear();
-		this.lastSent = NO_INPUT;
+		this.lastSent = NO_MOVE;
 	}
 }

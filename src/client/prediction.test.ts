@@ -1,10 +1,10 @@
 import { expect, test } from 'vitest';
 import { TICK_MS } from '../shared/constants.js';
-import { NO_INPUT } from '../shared/game.js';
+import { NO_MOVE } from '../shared/game.js';
 import type { PlayerState } from '../shared/protocol.js';
 import { Predictor } from './prediction.js';
 
-const RIGHT = { ...NO_INPUT, right: true };
+const RIGHT = { x: 1, y: 0 };
 
 function server(x: number, lastSeq: number): PlayerState {
 	return { id: 'me', name: 'me', color: '#ff4d4d', x, y: 100, score: 0, lastSeq, effects: [] };
@@ -116,4 +116,14 @@ test('new inputs use the effects active for their position in the queue', () => 
 	plain.reconcile(server(100, 0));
 	plain.applyLocalInput(RIGHT);
 	expect(plain.position?.x).toBeCloseTo(110);
+});
+
+test('a half-length move is predicted at half speed and replayed the same way', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	p.applyLocalInput({ x: 0.5, y: 0 });
+	expect(p.position?.x).toBeCloseTo(105);
+	p.reconcile(server(100, 0));
+	expect(p.position?.x).toBeCloseTo(105);
+	expect(NO_MOVE).toEqual({ x: 0, y: 0 });
 });

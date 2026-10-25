@@ -193,8 +193,7 @@ export class World {
 			return;
 		}
 		entry.highestSeq = msg.seq;
-		const { up, down, left, right } = msg.input;
-		entry.queue.push({ seq: msg.seq, input: { up, down, left, right } });
+		entry.queue.push({ seq: msg.seq, move: { x: msg.move.x, y: msg.move.y } });
 		if (entry.queue.length > MAX_QUEUED_INPUTS) {
 			entry.queue.shift();
 		}
@@ -322,7 +321,7 @@ export class World {
 			while (entry.credits >= 1 && entry.queue.length > 0) {
 				const msg = entry.queue.shift()!;
 				const factor = speedMultiplier(entry.effects.keys());
-				const pos = movePlayer(entry.state, msg.input, TICK_DT, factor);
+				const pos = movePlayer(entry.state, msg.move, TICK_DT, factor);
 				entry.state.x = pos.x;
 				entry.state.y = pos.y;
 				entry.state.lastSeq = msg.seq;

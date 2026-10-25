@@ -7,7 +7,13 @@ export interface Vec {
 	y: number;
 }
 
-/** Which direction keys are currently held. */
+/** Movement direction; length 0 (stand still) to 1 (full speed). */
+export interface Move {
+	x: number;
+	y: number;
+}
+
+/** Which direction keys are currently held (keyboard, and the pre-touch wire format). */
 export interface InputState {
 	up: boolean;
 	down: boolean;
@@ -18,7 +24,7 @@ export interface InputState {
 /** One client tick of input; `seq` increases by one per message. */
 export interface InputMessage {
 	seq: number;
-	input: InputState;
+	move: Move;
 }
 
 /** A player as the server sees it; `lastSeq` is the last input applied. */

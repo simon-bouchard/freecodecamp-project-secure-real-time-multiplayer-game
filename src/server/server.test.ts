@@ -77,7 +77,7 @@ test('input moves the player and is acked', async () => {
 	const a = await connect(0);
 	await nextSnapshot(a, (s) => s.players.length === 1);
 	world.setPlayerPosition(a.id!, { x: 300, y: 300 });
-	a.emit('input', { seq: 1, input: { ...NO_INPUT, right: true } });
+	a.emit('input', { seq: 1, move: { x: 1, y: 0 } });
 	const snap = await nextSnapshot(a, (s) => s.players[0]?.lastSeq === 1);
 	expect(snap.players[0]?.x).toBeCloseTo(310);
 });
@@ -176,7 +176,7 @@ test('rejoining with a token takes the player back', async () => {
 test('input from a spectator is ignored', async () => {
 	server = await startServer({ port: 0 });
 	const a = await connect();
-	a.emit('input', { seq: 1, input: { ...NO_INPUT, right: true } });
+	a.emit('input', { seq: 1, move: { x: 1, y: 0 } });
 	const first = await nextSnapshot(a);
 	const later = await nextSnapshot(a, (s) => s.tick > first.tick + 2);
 	expect(later.players).toEqual([]);
@@ -300,4 +300,16 @@ test('the game keeps running when the score store fails', async () => {
 	const first = await nextSnapshot(a);
 	const later = await nextSnapshot(a, (s) => s.tick > first.tick + 2);
 	expect(later.round.phase).toBe('results');
+});
+
+test('pages loaded before the update still move with the old key-flag input', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world });
+	const a = await connect(0);
+	await nextSnapshot(a, (s) => s.players.length === 1);
+	world.setPlayerPosition(a.id!, { x: 300, y: 300 });
+	const legacy = a as unknown as { emit: (event: string, payload: unknown) => void };
+	legacy.emit('input', { seq: 1, input: { ...NO_INPUT, right: true } });
+	const snap = await nextSnapshot(a, (s) => s.players[0]?.lastSeq === 1);
+	expect(snap.players[0]?.x).toBeCloseTo(310);
 });

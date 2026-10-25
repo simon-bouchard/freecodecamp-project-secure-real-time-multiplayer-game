@@ -17,11 +17,11 @@ import {
 	ROUND_TICKS,
 	TICK_MS,
 } from '../shared/constants.js';
-import { NO_INPUT, circlesOverlap } from '../shared/game.js';
-import type { InputState } from '../shared/protocol.js';
+import { NO_MOVE, circlesOverlap } from '../shared/game.js';
+import type { Move } from '../shared/protocol.js';
 import { World } from './world.js';
 
-const RIGHT: InputState = { ...NO_INPUT, right: true };
+const RIGHT: Move = { x: 1, y: 0 };
 
 function playerX(world: World, id: string): number {
 	const p = world.snapshot(0).players.find((pl) => pl.id === id);
@@ -39,7 +39,7 @@ function worldWithPlayerAt(x: number, y: number): World {
 
 test('applies queued input and acks seq', () => {
 	const world = worldWithPlayerAt(300, 300);
-	world.queueInput('a', { seq: 1, input: RIGHT });
+	world.queueInput('a', { seq: 1, move: RIGHT });
 	world.step();
 	const p = world.snapshot(0).players[0];
 	expect(p?.x).toBe(310);
@@ -54,9 +54,9 @@ test('no input means no movement', () => {
 
 test('ignores stale or duplicate seq', () => {
 	const world = worldWithPlayerAt(300, 300);
-	world.queueInput('a', { seq: 2, input: RIGHT });
-	world.queueInput('a', { seq: 2, input: RIGHT });
-	world.queueInput('a', { seq: 1, input: RIGHT });
+	world.queueInput('a', { seq: 2, move: RIGHT });
+	world.queueInput('a', { seq: 2, move: RIGHT });
+	world.queueInput('a', { seq: 1, move: RIGHT });
 	for (let i = 0; i < 3; i++) world.step();
 	expect(playerX(world, 'a')).toBe(310);
 });
@@ -65,8 +65,8 @@ test('flooding does not increase speed', () => {
 	const world = worldWithPlayerAt(21, 300);
 	let seq = 0;
 	for (let i = 0; i < 40; i++) {
-		world.queueInput('a', { seq: ++seq, input: RIGHT });
-		world.queueInput('a', { seq: ++seq, input: RIGHT });
+		world.queueInput('a', { seq: ++seq, move: RIGHT });
+		world.queueInput('a', { seq: ++seq, move: RIGHT });
 		world.step();
 	}
 	const maxInputs = MAX_INPUT_CREDITS + 40 * INPUT_RATE_TOLERANCE;
@@ -76,7 +76,7 @@ test('flooding does not increase speed', () => {
 
 test('queue cap drops the oldest inputs', () => {
 	const world = worldWithPlayerAt(300, 300);
-	for (let seq = 1; seq <= 40; seq++) world.queueInput('a', { seq, input: NO_INPUT });
+	for (let seq = 1; seq <= 40; seq++) world.queueInput('a', { seq, move: NO_MOVE });
 	expect(world.pendingInputs('a').map((m) => m.seq)).toEqual([37, 38, 39, 40]);
 	for (let i = 0; i < 40; i++) world.step();
 	expect(world.snapshot(0).players[0]?.lastSeq).toBe(40);
@@ -85,24 +85,19 @@ test('queue cap drops the oldest inputs', () => {
 test('jitter burst does not leave a permanent backlog', () => {
 	const world = worldWithPlayerAt(300, 300);
 	let seq = 0;
-	for (let i = 0; i < 6; i++) world.queueInput('a', { seq: ++seq, input: NO_INPUT });
+	for (let i = 0; i < 6; i++) world.queueInput('a', { seq: ++seq, move: NO_MOVE });
 	for (let i = 0; i < 100; i++) {
-		world.queueInput('a', { seq: ++seq, input: NO_INPUT });
+		world.queueInput('a', { seq: ++seq, move: NO_MOVE });
 		world.step();
 	}
 	expect(world.pendingInputs('a').length).toBeLessThanOrEqual(1);
 });
 
-test('only the four direction flags are stored', () => {
+test('only the direction x and y are stored', () => {
 	const world = worldWithPlayerAt(300, 300);
-	const input = { ...RIGHT, junk: 'x'.repeat(1000) } as InputState;
-	world.queueInput('a', { seq: 1, input });
-	expect(Object.keys(world.pendingInputs('a')[0]!.input).sort()).toEqual([
-		'down',
-		'left',
-		'right',
-		'up',
-	]);
+	const move = { ...RIGHT, junk: 'x'.repeat(1000) } as Move;
+	world.queueInput('a', { seq: 1, move });
+	expect(Object.keys(world.pendingInputs('a')[0]!.move).sort()).toEqual(['x', 'y']);
 });
 
 test('coin collected once when two players overlap it', () => {
@@ -126,7 +121,7 @@ test('coin collected once when two players overlap it', () => {
 test('pickup happens in the same tick as the move', () => {
 	const world = worldWithPlayerAt(300, 300);
 	world.setCoinPosition({ x: 331, y: 300 });
-	world.queueInput('a', { seq: 1, input: RIGHT });
+	world.queueInput('a', { seq: 1, move: RIGHT });
 	world.step();
 	expect(world.snapshot(0).players[0]?.score).toBe(1);
 });
@@ -140,18 +135,18 @@ test('removePlayer drops from snapshot', () => {
 
 test('queueInput for unknown id is ignored', () => {
 	const world = new World();
-	expect(() => world.queueInput('nobody', { seq: 1, input: RIGHT })).not.toThrow();
+	expect(() => world.queueInput('nobody', { seq: 1, move: RIGHT })).not.toThrow();
 	world.step();
 	expect(world.snapshot(0).players).toEqual([]);
 });
 
 test('new player starts at seq 0', () => {
 	const world = worldWithPlayerAt(300, 300);
-	world.queueInput('a', { seq: 5, input: RIGHT });
+	world.queueInput('a', { seq: 5, move: RIGHT });
 	world.step();
 	world.removePlayer('a');
 	world.addPlayer('a');
-	world.queueInput('a', { seq: 1, input: RIGHT });
+	world.queueInput('a', { seq: 1, move: RIGHT });
 	world.step();
 	expect(world.snapshot(0).players[0]?.lastSeq).toBe(1);
 });
@@ -235,7 +230,7 @@ test('token hands the player over', () => {
 	world.setScore('a', 4);
 	world.setPlayerPosition('a', { x: 100, y: 100 });
 	world.setCoinPosition({ x: 600, y: 440 });
-	world.queueInput('a', { seq: 7, input: RIGHT });
+	world.queueInput('a', { seq: 7, move: RIGHT });
 	expect(world.join('b', { name: 'x', color: color(5), token: 't1' })).toEqual({
 		ok: true,
 		token: 't1',
@@ -252,7 +247,7 @@ test('token hands the player over', () => {
 		lastSeq: 0,
 	});
 	expect(world.pendingInputs('b')).toEqual([]);
-	world.queueInput('b', { seq: 1, input: RIGHT });
+	world.queueInput('b', { seq: 1, move: RIGHT });
 	expect(world.pendingInputs('b')).toHaveLength(1);
 	world.removePlayer('a');
 	expect(world.snapshot(0).players.map((p) => p.id)).toEqual(['b']);
@@ -294,7 +289,7 @@ test('no movement or pickups during results', () => {
 	const world = worldWithPlayerAt(300, 300);
 	steps(world, ROUND_TICKS);
 	world.setCoinPosition({ x: 300, y: 300 });
-	world.queueInput('a', { seq: 1, input: RIGHT });
+	world.queueInput('a', { seq: 1, move: RIGHT });
 	world.step();
 	const p = world.snapshot(0).players[0];
 	expect(p).toMatchObject({ x: 300, y: 300, score: 0, lastSeq: 1 });
@@ -319,7 +314,7 @@ test('joining during results starts at 0 and cannot move', () => {
 	steps(world, ROUND_TICKS);
 	world.join('b', { name: 'Bob', color: color(7) });
 	world.setPlayerPosition('b', { x: 200, y: 200 });
-	world.queueInput('b', { seq: 1, input: RIGHT });
+	world.queueInput('b', { seq: 1, move: RIGHT });
 	world.step();
 	expect(world.phase).toBe('results');
 	expect(world.snapshot(0).players.find((p) => p.id === 'b')).toMatchObject({
@@ -429,7 +424,7 @@ function boostWorld(): World {
 
 function moveRight(world: World, id: string, seq: number): number {
 	const before = playerX(world, id);
-	world.queueInput(id, { seq, input: RIGHT });
+	world.queueInput(id, { seq, move: RIGHT });
 	world.step();
 	return playerX(world, id) - before;
 }

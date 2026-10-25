@@ -10,8 +10,8 @@ import {
 	PALETTE,
 	TICK_MS,
 } from '../shared/constants.js';
-import { NO_INPUT } from '../shared/game.js';
-import type { InputState, JoinFailure, Snapshot } from '../shared/protocol.js';
+import { NO_MOVE } from '../shared/game.js';
+import type { JoinFailure, Move, Snapshot } from '../shared/protocol.js';
 import { type GameServer, startServer } from '../server/server.js';
 import { World } from '../server/world.js';
 import { type GameSocket, GameSession } from './session.js';
@@ -64,7 +64,7 @@ async function connected(socket: GameSocket): Promise<void> {
 
 test('movement works again after a reconnect while a key was held', async () => {
 	server = await startServer({ port: 0 });
-	let input: InputState = { ...NO_INPUT, right: true };
+	let input: Move = { x: 1, y: 0 };
 	const socket = newSocket();
 	const session = new GameSession(socket, () => input);
 
@@ -79,7 +79,7 @@ test('movement works again after a reconnect while a key was held', async () => 
 	socket.connect();
 	await waitFor(() => session.joined && session.predictor.position !== null);
 	for (let i = 0; i < 10; i++) session.tick();
-	input = NO_INPUT;
+	input = NO_MOVE;
 
 	await waitFor(() => selfIn(session.buffer.latest(), socket.id)?.lastSeq === 10);
 	expect(session.predictor.pending).toEqual([]);
@@ -89,7 +89,7 @@ test('spectator sends no input', async () => {
 	const world = new World();
 	server = await startServer({ port: 0, world });
 	const socket = newSocket();
-	const session = new GameSession(socket, () => ({ ...NO_INPUT, right: true }));
+	const session = new GameSession(socket, () => ({ x: 1, y: 0 }));
 	await connected(socket);
 	await waitFor(() => session.buffer.latest() !== undefined);
 	for (let i = 0; i < 10; i++) session.tick();
@@ -102,7 +102,7 @@ test('join then reconnect keeps colour and score', async () => {
 	const world = new StickyWorld();
 	server = await startServer({ port: 0, world });
 	const socket = newSocket();
-	const session = new GameSession(socket, () => NO_INPUT);
+	const session = new GameSession(socket, () => NO_MOVE);
 	await connected(socket);
 	const res = await session.join('Ann', PALETTE[3]!);
 	expect(res.ok).toBe(true);
@@ -124,7 +124,7 @@ test('rejoin with a taken colour calls onRejoinFailed', async () => {
 	const socket = newSocket();
 	const session = new GameSession(
 		socket,
-		() => NO_INPUT,
+		() => NO_MOVE,
 		(reason) => failures.push(reason),
 	);
 	await connected(socket);
@@ -146,7 +146,7 @@ test('rejoin with a taken colour calls onRejoinFailed', async () => {
 test('view lists players with names and colours', async () => {
 	server = await startServer({ port: 0 });
 	const socket = newSocket();
-	const session = new GameSession(socket, () => NO_INPUT);
+	const session = new GameSession(socket, () => NO_MOVE);
 	await connected(socket);
 	await session.join('Ann', PALETTE[1]!);
 	await waitFor(() => session.predictor.position !== null);
@@ -163,7 +163,7 @@ test('double join only joins once', async () => {
 	const world = new World();
 	server = await startServer({ port: 0, world });
 	const socket = newSocket();
-	const session = new GameSession(socket, () => NO_INPUT);
+	const session = new GameSession(socket, () => NO_MOVE);
 	await connected(socket);
 	const [first, second] = await Promise.all([
 		session.join('Ann', PALETTE[0]!),
@@ -183,7 +183,7 @@ test('join gives up when the server never answers', async () => {
 	const socket: GameSocket = io(`http://localhost:${port}`, { transports: ['websocket'] });
 	sockets.push(socket);
 	await waitFor(() => socket.connected);
-	const session = new GameSession(socket, () => NO_INPUT, undefined, 100);
+	const session = new GameSession(socket, () => NO_MOVE, undefined, 100);
 	expect(await session.join('Ann', PALETTE[0]!)).toEqual({ ok: false, reason: 'timeout' });
 	expect(session.joined).toBe(false);
 	socket.disconnect();
@@ -194,7 +194,7 @@ test('view shows items, the big coin and own effects', async () => {
 	const world = new World();
 	server = await startServer({ port: 0, world });
 	const socket = newSocket();
-	const session = new GameSession(socket, () => NO_INPUT);
+	const session = new GameSession(socket, () => NO_MOVE);
 	await connected(socket);
 	await session.join('Ann', PALETTE[0]!);
 	await waitFor(() => session.predictor.position !== null);
@@ -221,7 +221,7 @@ test('view shows items, the big coin and own effects', async () => {
 
 test('a freshly respawned coin shows immediately, before interpolation catches up', () => {
 	const stub = Object.assign(new EventEmitter(), { connected: true, id: 'me' });
-	const session = new GameSession(stub as unknown as GameSocket, () => NO_INPUT);
+	const session = new GameSession(stub as unknown as GameSocket, () => NO_MOVE);
 	const base = {
 		tick: 0,
 		players: [],
@@ -237,7 +237,7 @@ test('a freshly respawned coin shows immediately, before interpolation catches u
 
 test('the session keeps the latest leaderboard and exposes highlights during results', () => {
 	const stub = Object.assign(new EventEmitter(), { connected: true, id: 'me' });
-	const session = new GameSession(stub as unknown as GameSocket, () => NO_INPUT);
+	const session = new GameSession(stub as unknown as GameSocket, () => NO_MOVE);
 	const empty = { everyone: [], mine: [], myRank: null };
 	const view = {
 		boards: { today: empty, month: empty, all: empty },

@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { Server } from 'socket.io';
 import { TICK_MS } from '../shared/constants.js';
-import { isPlayerKey, isValidInputMessage, isValidJoinRequest } from '../shared/game.js';
+import { isPlayerKey, isValidJoinRequest, parseInputMessage } from '../shared/game.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/protocol.js';
 import { createApp } from './app.js';
 import { rankedBoards, recordRound, viewFor } from './scores/leaderboard.js';
@@ -75,8 +75,9 @@ export async function startServer(opts: ServerOptions): Promise<GameServer> {
 			);
 		});
 		socket.on('input', (msg: unknown) => {
-			if (isValidInputMessage(msg)) {
-				world.queueInput(socket.id, msg);
+			const input = parseInputMessage(msg);
+			if (input) {
+				world.queueInput(socket.id, input);
 			}
 		});
 		socket.on('disconnect', () => {

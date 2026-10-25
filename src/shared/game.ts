@@ -8,7 +8,7 @@ import {
 	SPEED_BOOST,
 	innerBounds,
 } from './constants.js';
-import type { InputMessage, InputState, ItemKind, JoinRequest, Vec } from './protocol.js';
+import type { InputMessage, InputState, ItemKind, JoinRequest, Move, Vec } from './protocol.js';
 
 /** A circle to keep spawns away from. */
 export interface Circle {
@@ -18,6 +18,7 @@ export interface Circle {
 }
 
 export const NO_INPUT: InputState = { up: false, down: false, left: false, right: false };
+export const NO_MOVE: Move = { x: 0, y: 0 };
 
 /** Clamp a circle's centre so the whole circle stays inside the arena wall. */
 export function clampToArena(pos: Vec, radius: number): Vec {
@@ -28,15 +29,25 @@ export function clampToArena(pos: Vec, radius: number): Vec {
 	};
 }
 
-/** Advance a player by `dt` seconds of `input` at a speed multiplier; diagonals normalised. */
-export function movePlayer(pos: Vec, input: InputState, dt: number, speedMultiplier = 1): Vec {
-	const dx = Number(input.right) - Number(input.left);
-	const dy = Number(input.down) - Number(input.up);
-	if (dx === 0 && dy === 0) {
+/**
+ * Advance a player by `dt` seconds along `move`. Speed scales with the move's length, capped at
+ * 1, so no direction is faster than `PLAYER_SPEED * speedMultiplier`.
+ */
+export function movePlayer(pos: Vec, move: Move, dt: number, speedMultiplier = 1): Vec {
+	const length = Math.hypot(move.x, move.y);
+	if (length === 0) {
 		return { x: pos.x, y: pos.y };
 	}
-	const step = (PLAYER_SPEED * speedMultiplier * dt) / Math.hypot(dx, dy);
-	return clampToArena({ x: pos.x + dx * step, y: pos.y + dy * step }, PLAYER_RADIUS);
+	const step = (PLAYER_SPEED * speedMultiplier * dt * Math.min(1, length)) / length;
+	return clampToArena({ x: pos.x + move.x * step, y: pos.y + move.y * step }, PLAYER_RADIUS);
+}
+
+/** Direction for held keys: unit length, diagonals normalised, opposite keys cancel. */
+export function inputToMove(input: InputState): Move {
+	const x = Number(input.right) - Number(input.left);
+	const y = Number(input.down) - Number(input.up);
+	const length = Math.hypot(x, y);
+	return length === 0 ? { ...NO_MOVE } : { x: x / length, y: y / length };
 }
 
 /** True if two circles overlap (touching edges do not count). */
@@ -102,20 +113,35 @@ export function calculateRank(
 	return { rank: higher + 1, total: players.length };
 }
 
-/** Runtime check for untrusted input messages from clients. */
-export function isValidInputMessage(value: unknown): value is InputMessage {
-	if (typeof value !== 'object' || value === null) {
-		return false;
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Validate an untrusted input message. Directions are capped at length 1; the old key-flag format
+ * is converted so pages loaded before an update still move. Returns null when invalid.
+ */
+export function parseInputMessage(value: unknown): InputMessage | null {
+	if (!isRecord(value) || !Number.isSafeInteger(value.seq) || (value.seq as number) < 0) {
+		return null;
 	}
-	const { seq, input } = value as Record<string, unknown>;
-	if (!Number.isSafeInteger(seq) || (seq as number) < 0) {
-		return false;
+	const seq = value.seq as number;
+	const { move, input } = value;
+	if (isRecord(move)) {
+		const { x, y } = move;
+		if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x + y)) {
+			return null;
+		}
+		const length = Math.hypot(x, y);
+		return { seq, move: length > 1 ? { x: x / length, y: y / length } : { x, y } };
 	}
-	if (typeof input !== 'object' || input === null) {
-		return false;
+	if (
+		isRecord(input) &&
+		(['up', 'down', 'left', 'right'] as const).every((k) => typeof input[k] === 'boolean')
+	) {
+		return { seq, move: inputToMove(input as unknown as InputState) };
 	}
-	const keys = input as Record<string, unknown>;
-	return (['up', 'down', 'left', 'right'] as const).every((k) => typeof keys[k] === 'boolean');
+	return null;
 }
 
 /** Control, line-break and invisible format characters; the emoji joiner (U+200D) is allowed. */

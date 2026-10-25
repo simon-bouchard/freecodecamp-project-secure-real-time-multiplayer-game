@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { inputToMove } from '../shared/game.js';
 import type { JoinFailure } from '../shared/protocol.js';
 import { fitCanvasToScreen } from './canvas.js';
 import { Keyboard } from './input.js';
@@ -48,7 +49,7 @@ const bestRuns = new BestRunsPanel(
 const panel = new JoinPanel(document.getElementById('join-panel') as HTMLFormElement, join);
 const session = new GameSession(
 	socket,
-	() => keyboard.state,
+	() => inputToMove(keyboard.state),
 	(reason) =>
 		panel.show(
 			reason === 'color-taken'
