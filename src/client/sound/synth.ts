@@ -291,30 +291,6 @@ export class Synth {
 		this.tone(180, t, { type: 'triangle', dur: 0.3, gain: gain * 0.4, to: 60 });
 	}
 
-	/** Shadow clone pop on one side: bright puff, quick dropping thump, short airy tail. */
-	clonePop(t: number, side: number, gain = 0.9): void {
-		const pan: Pan = [side, side, 0.4];
-		this.noise(t, { freq: 1800, to: 500, q: 0.8, gain: gain * 0.9, dur: 0.06, attack: 0.003, pan });
-		this.noise(t + 0.02, {
-			type: 'lowpass',
-			freq: 1600,
-			to: 200,
-			q: 0.4,
-			gain: gain * 0.6,
-			dur: 0.3,
-			attack: 0.02,
-			pan,
-		});
-		const o = this.ctx.createOscillator();
-		o.frequency.setValueAtTime(320, t);
-		o.frequency.exponentialRampToValueAtTime(70, t + 0.09);
-		const g = this.ctx.createGain();
-		envelope(g, t, 0.003, gain * 0.7, 0.12);
-		this.out(o.connect(g), t, pan);
-		o.start(t);
-		o.stop(t + 0.2);
-	}
-
 	/** A spinning blade passing left to right: a swoosh chopped by a fast flutter. */
 	spinner(t: number, { dur = 0.5, rate = 26, gain = 0.7 } = {}): void {
 		const s = this.noiseSource();

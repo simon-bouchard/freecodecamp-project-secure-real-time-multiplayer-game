@@ -30,8 +30,10 @@ export const ninjaSounds: SoundSet = {
 		s.rin(1568, t + 0.42, { gain: 0.14, dur: 1.4 });
 	},
 	double: (s, t) => {
-		s.clonePop(t, -0.7);
-		s.clonePop(t + 0.12, 0.7);
+		s.koto(YO.A5, t, { gain: 0.5 });
+		s.koto(YO.D6, t + 0.09, { gain: 0.5 });
+		s.koto(YO.A5, t + 0.18, { gain: 0.35 });
+		s.koto(YO.D6, t + 0.27, { gain: 0.45 });
 	},
 	slowGrab: (s, t) => {
 		s.taiko(t, { freq: 45, dur: 1.1 });
