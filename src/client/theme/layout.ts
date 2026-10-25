@@ -1,4 +1,4 @@
-import { ARENA, PLAYER_RADIUS } from '../../../shared/constants.js';
+import { ARENA, PLAYER_RADIUS } from '../../shared/constants.js';
 
 const NAME_GAP = 9;
 const TAGS_ABOVE_NAME = 20;

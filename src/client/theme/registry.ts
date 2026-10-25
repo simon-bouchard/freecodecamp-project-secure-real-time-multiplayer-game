@@ -2,6 +2,7 @@
 export const THEME_OPTIONS = [
 	{ id: 'ninja', label: 'Ninja' },
 	{ id: 'classic', label: 'Classic' },
+	{ id: 'flat', label: 'Flat' },
 ] as const;
 
 export type ThemeId = (typeof THEME_OPTIONS)[number]['id'];

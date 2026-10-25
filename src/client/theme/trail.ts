@@ -1,4 +1,4 @@
-import type { Vec } from '../../../shared/protocol.js';
+import type { Vec } from '../../shared/protocol.js';
 
 const PUFF_INTERVAL_MS = 60;
 const PUFF_LIFETIME_MS = 450;
@@ -16,7 +16,7 @@ interface Track {
 	puffs: Puff[];
 }
 
-/** Fading smoke puffs left behind boosted players, tracked per player id. */
+/** Fading puffs (smoke, ghost discs) left behind boosted players, tracked per player id. */
 export class SmokeTrail {
 	private readonly tracks = new Map<string, Track>();
 

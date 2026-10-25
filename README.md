@@ -31,7 +31,8 @@ busy.
 - **Ninja look**: headband ninjas on a sandy training ground. Grab narutomaki slices (1 point)
   and the steaming ramen bowl (5 points); boosts are paper tags. An original, ninja-inspired
   design, not based on any franchise artwork.
-- **Themes**: pick **Ninja** or **Classic** (the original yellow-vs-red smileys) from the
+- **Themes**: pick **Ninja**, **Classic** (the original yellow-vs-red smileys) or **Flat** (plain
+  discs on dark slate) from the
   Theme menu on the join screen or under the scoreboard. It only changes your own screen and
   is remembered in your browser.
 

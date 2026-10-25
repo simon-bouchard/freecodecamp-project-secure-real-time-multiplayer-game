@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { SmokeTrail } from './smoke.js';
+import { SmokeTrail } from './trail.js';
 
 function run(trail: SmokeTrail, boosted: boolean, from = 0, frames = 10) {
 	for (let i = 0; i < frames; i++)

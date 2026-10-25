@@ -20,8 +20,8 @@ import {
 	tagSprite,
 } from './art.js';
 import { PAPER, mulberry32, readableOnPaper } from './geometry.js';
-import { labelLayout, labelX } from './layout.js';
-import { SmokeTrail } from './smoke.js';
+import { labelLayout, labelX } from '../layout.js';
+import { SmokeTrail } from '../trail.js';
 
 const COLORS = {
 	page: '#2a1c11',

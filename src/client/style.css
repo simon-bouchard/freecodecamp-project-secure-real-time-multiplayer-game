@@ -346,3 +346,83 @@ canvas {
 	color: var(--cream);
 	border-color: #6b4a30;
 }
+
+/* Flat theme: dark slate cards, gold accent. */
+.theme-flat {
+	--slate: #20242c;
+	--card: #1b1e25;
+	--row: #343a46;
+	--text: #e6e8ee;
+	--muted: #9aa3b2;
+	--gold: #ffcc33;
+	background: var(--slate);
+	color: var(--text);
+}
+
+.theme-flat.joining::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 1;
+	background: rgba(20, 22, 28, 0.55);
+}
+
+.theme-flat .join-panel {
+	z-index: 2;
+	max-height: calc(100vh - 32px);
+	overflow-y: auto;
+	background: var(--card);
+	border: none;
+	border-radius: 12px;
+	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.theme-flat .join-panel h2 {
+	text-align: center;
+	letter-spacing: 1px;
+}
+
+.theme-flat .join-panel label,
+.theme-flat .join-panel .label,
+.theme-flat .hint {
+	color: var(--muted);
+}
+
+.theme-flat .hint {
+	text-align: center;
+}
+
+.theme-flat .join-panel input,
+.theme-flat .theme-select {
+	background: var(--row);
+	color: var(--text);
+	border: none;
+	border-radius: 6px;
+}
+
+.theme-flat .join-panel button[type='submit'] {
+	background: var(--gold);
+	color: var(--card);
+	border-radius: 6px;
+	font-weight: 700;
+}
+
+.theme-flat .swatch[aria-pressed='true'] {
+	border-color: var(--text);
+	box-shadow: 0 0 0 2px var(--card) inset;
+}
+
+.theme-flat .scoreboard {
+	background: var(--card);
+	border-radius: 12px;
+}
+
+.theme-flat .scoreboard h2 {
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	font-size: 14px;
+}
+
+.theme-flat .scoreboard li.self {
+	background: var(--row);
+}

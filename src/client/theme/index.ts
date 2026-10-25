@@ -1,4 +1,5 @@
 import { classicTheme } from './classic/index.js';
+import { flatTheme } from './flat/index.js';
 import { ninjaTheme } from './ninja/index.js';
 import type { ThemeId } from './registry.js';
 import type { Theme } from './types.js';
@@ -7,4 +8,5 @@ import type { Theme } from './types.js';
 export const THEMES: Record<ThemeId, Theme> = {
 	ninja: ninjaTheme,
 	classic: classicTheme,
+	flat: flatTheme,
 };

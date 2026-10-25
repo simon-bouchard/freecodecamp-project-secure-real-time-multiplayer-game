@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { ARENA, PLAYER_RADIUS } from '../../../shared/constants.js';
+import { ARENA, PLAYER_RADIUS } from '../../shared/constants.js';
 import { labelLayout, labelX } from './layout.js';
 
 test('labels sit above a player in open space', () => {
