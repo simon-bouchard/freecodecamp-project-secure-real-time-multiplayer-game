@@ -133,13 +133,6 @@ function drawPlayer(ctx: CanvasRenderingContext2D, player: DrawnPlayer): void {
 		ctx.fill();
 	}
 	drawEffects(ctx, player);
-	if (player.self) {
-		ctx.strokeStyle = COLORS.text;
-		ctx.lineWidth = 2;
-		ctx.beginPath();
-		ctx.arc(player.x, player.y, PLAYER_RADIUS + 2, 0, Math.PI * 2);
-		ctx.stroke();
-	}
 	ctx.font = '12px sans-serif';
 	ctx.textAlign = 'center';
 	ctx.fillStyle = COLORS.text;
