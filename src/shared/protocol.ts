@@ -1,4 +1,5 @@
 import type { ItemKind } from './constants.js';
+import type { MapChoice, MapId } from './maps.js';
 
 export type { ItemKind };
 
@@ -49,6 +50,8 @@ export interface PlayerState {
 	dash: DashState | null;
 	/** Server time (ms) when the next dash is allowed; 0 when ready. */
 	dashReadyAt: number;
+	/** This player's map vote, or null. */
+	vote: MapChoice | null;
 }
 
 /** An active boost on a player; `endsAt` is server time in ms. */
@@ -99,7 +102,8 @@ export interface Snapshot {
 	events: GameEvent[];
 }
 
-export type RoundPhase = 'waiting' | 'playing' | 'results';
+/** `voting` picks the map before the first round; `results` is also the vote for the next one. */
+export type RoundPhase = 'waiting' | 'voting' | 'playing' | 'results';
 
 /** Leaderboard time windows: today, this month, all time (server-local calendar). */
 export type Period = 'today' | 'month' | 'all';
@@ -109,6 +113,10 @@ export interface RoundState {
 	phase: RoundPhase;
 	endsAt: number | null;
 	winners: string[];
+	/** The map being played (or last played, during a vote). */
+	map: MapId;
+	/** Votes for the next map so far. */
+	votes: Record<MapChoice, number>;
 }
 
 /** Join or rejoin; `token` from an earlier join takes that player back after a reconnect. */
@@ -156,5 +164,6 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
 	input: (msg: InputMessage) => void;
+	vote: (choice: MapChoice) => void;
 	join: (req: JoinRequest, ack: (res: JoinResult) => void) => void;
 }

@@ -74,6 +74,19 @@ export const MAPS: Record<MapId, GameMap> = {
 
 export const NO_OBSTACLES: readonly Obstacle[] = [];
 
+/** What a player can vote for: a map, or a random one. */
+export const MAP_CHOICES = [...MAP_IDS, 'random'] as const;
+export type MapChoice = (typeof MAP_CHOICES)[number];
+
+/** A tally with no votes yet. */
+export function noVotes(): Record<MapChoice, number> {
+	return Object.fromEntries(MAP_CHOICES.map((c) => [c, 0])) as Record<MapChoice, number>;
+}
+
+export function isMapChoice(value: unknown): value is MapChoice {
+	return typeof value === 'string' && (MAP_CHOICES as readonly string[]).includes(value);
+}
+
 export function isMapId(value: unknown): value is MapId {
 	return typeof value === 'string' && (MAP_IDS as readonly string[]).includes(value);
 }

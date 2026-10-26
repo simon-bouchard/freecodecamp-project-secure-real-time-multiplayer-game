@@ -19,6 +19,7 @@ function server(x: number, lastSeq: number): PlayerState {
 		knock: { x: 0, y: 0 },
 		dash: null,
 		dashReadyAt: 0,
+		vote: null,
 	};
 }
 

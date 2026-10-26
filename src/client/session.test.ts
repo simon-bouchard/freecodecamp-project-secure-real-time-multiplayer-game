@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { Server } from 'socket.io';
 import { io } from 'socket.io-client';
 import { afterEach, expect, test } from 'vitest';
+import { noVotes } from '../shared/maps.js';
 import {
 	BIG_COIN_LIFETIME_TICKS,
 	ITEM_LIFETIME_TICKS,
@@ -63,7 +64,7 @@ async function connected(socket: GameSocket): Promise<void> {
 }
 
 test('movement works again after a reconnect while a key was held', async () => {
-	server = await startServer({ port: 0 });
+	server = await startServer({ port: 0, world: new World() });
 	let input: Move = { x: 1, y: 0 };
 	const socket = newSocket();
 	const session = new GameSession(socket, () => input);
@@ -119,7 +120,7 @@ test('join then reconnect keeps colour and score', async () => {
 });
 
 test('rejoin with a taken colour calls onRejoinFailed', async () => {
-	server = await startServer({ port: 0 });
+	server = await startServer({ port: 0, world: new World() });
 	const failures: JoinFailure[] = [];
 	const socket = newSocket();
 	const session = new GameSession(
@@ -144,7 +145,7 @@ test('rejoin with a taken colour calls onRejoinFailed', async () => {
 });
 
 test('view lists players with names and colours', async () => {
-	server = await startServer({ port: 0 });
+	server = await startServer({ port: 0, world: new World() });
 	const socket = newSocket();
 	const session = new GameSession(socket, () => NO_MOVE);
 	await connected(socket);
@@ -227,7 +228,13 @@ test('a freshly respawned coin shows immediately, before interpolation catches u
 		players: [],
 		bigCoin: null,
 		items: [],
-		round: { phase: 'playing' as const, endsAt: null, winners: [] },
+		round: {
+			phase: 'playing' as const,
+			endsAt: null,
+			winners: [],
+			map: 'open' as const,
+			votes: noVotes(),
+		},
 	};
 	const now = performance.now();
 	stub.emit('snapshot', { ...base, time: now - 33, coin: { id: 1, x: 100, y: 100 } });
@@ -253,7 +260,7 @@ test('the session keeps the latest leaderboard and exposes highlights during res
 		coin: { id: 1, x: 100, y: 100 },
 		bigCoin: null,
 		items: [],
-		round: { phase: 'results', endsAt: now + 8000, winners: [] },
+		round: { phase: 'results', endsAt: now + 8000, winners: [], map: 'open', votes: noVotes() },
 	});
 	expect(session.view(now).highlights).toEqual(new Map([['p2', 'month']]));
 });

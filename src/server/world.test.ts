@@ -23,6 +23,8 @@ import {
 	ROUND_TICKS,
 	TICK_DT,
 	TICK_MS,
+	VOTE_EARLY_TICKS,
+	VOTE_TICKS,
 	innerBounds,
 } from '../shared/constants.js';
 import { NO_MOVE, circlesOverlap } from '../shared/game.js';
@@ -970,5 +972,87 @@ test('a magnet never pulls a coin into an obstacle', () => {
 		expect(obstacleGap(MAPS.pillars.obstacles[0]!, coin)).toBeGreaterThanOrEqual(
 			COIN_RADIUS - 1e-6,
 		);
+	}
+});
+
+function votingWorld(rng: () => number = () => 0): World {
+	const world = new World(rng, tokens(), { firstVoteTicks: VOTE_TICKS });
+	world.addPlayer('a');
+	world.addPlayer('b');
+	return world;
+}
+
+test('the first player opens a map vote, and round 1 starts on the winner', () => {
+	const world = votingWorld();
+	expect(world.phase).toBe('voting');
+	expect(world.snapshot(0).round.map).toBe('open');
+	world.vote('a', 'lanes');
+	world.vote('b', 'lanes');
+	expect(world.snapshot(0).round.votes.lanes).toBe(2);
+	steps(world, VOTE_EARLY_TICKS - 1);
+	expect(world.phase).toBe('voting');
+	world.step();
+	expect(world.phase).toBe('playing');
+	expect(world.snapshot(0).round.map).toBe('lanes');
+	expect(world.snapshot(0).players.map((p) => p.vote)).toEqual([null, null]);
+});
+
+test('without votes the first vote runs its full time, then picks a random map', () => {
+	const world = votingWorld(() => 0.99);
+	steps(world, VOTE_TICKS - 1);
+	expect(world.phase).toBe('voting');
+	world.step();
+	expect(world.phase).toBe('playing');
+	expect(world.map).toBe('pinball');
+});
+
+test('ties are broken at random among the tied choices, and Random picks any map', () => {
+	for (const [rng, expected] of [
+		[0, 'ring'],
+		[0.99, 'lanes'],
+	] as const) {
+		const world = votingWorld(() => rng);
+		world.vote('a', 'ring');
+		world.vote('b', 'lanes');
+		steps(world, VOTE_TICKS);
+		expect(world.map).toBe(expected);
+	}
+	const random = votingWorld(() => 0.99);
+	random.vote('a', 'random');
+	steps(random, VOTE_TICKS);
+	expect(random.map).toBe('pinball');
+});
+
+test('the results screen is the vote for the next round', () => {
+	const world = dashWorld();
+	steps(world, ROUND_TICKS);
+	expect(world.phase).toBe('results');
+	world.vote('a', 'pillars');
+	expect(selfOf(world).vote).toBe('pillars');
+	world.vote('a', 'crossroads');
+	expect(world.snapshot(0).round.votes).toMatchObject({ pillars: 0, crossroads: 1 });
+	steps(world, RESULTS_TICKS);
+	expect(world.phase).toBe('playing');
+	expect(world.map).toBe('crossroads');
+});
+
+test('votes during play, from strangers, or for unknown maps are ignored', () => {
+	const world = dashWorld();
+	world.vote('a', 'pillars');
+	world.vote('ghost', 'pillars');
+	steps(world, ROUND_TICKS);
+	world.vote('a', 'moon' as never);
+	expect(world.snapshot(0).round.votes.pillars).toBe(0);
+	expect(selfOf(world).vote).toBeNull();
+});
+
+test('a new map pushes players out of its obstacles', () => {
+	const world = dashWorld();
+	steps(world, ROUND_TICKS);
+	world.setPlayerPosition('a', { x: 320, y: 262.5 });
+	world.vote('a', 'pillars');
+	steps(world, RESULTS_TICKS);
+	for (const o of MAPS.pillars.obstacles) {
+		expect(obstacleGap(o, selfOf(world))).toBeGreaterThanOrEqual(PLAYER_RADIUS - 1e-6);
 	}
 });

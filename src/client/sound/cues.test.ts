@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { noVotes } from '../../shared/maps.js';
 import type { GameEvent, LeaderboardView, RoundPhase, Snapshot } from '../../shared/protocol.js';
 import { CueTracker } from './cues.js';
 
@@ -25,6 +26,7 @@ function snap(
 		knock: { x: 0, y: 0 },
 		dash: null,
 		dashReadyAt: 0,
+		vote: null,
 	});
 	return {
 		tick: time,
@@ -33,7 +35,7 @@ function snap(
 		coin: { id: 1, x: 0, y: 0 },
 		bigCoin: null,
 		items: [],
-		round: { phase, endsAt, winners },
+		round: { phase, endsAt, winners, map: 'open', votes: noVotes() },
 		events,
 	};
 }

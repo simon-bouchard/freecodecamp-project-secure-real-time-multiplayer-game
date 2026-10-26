@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { noVotes } from '../shared/maps.js';
 import { SNAPSHOT_BUFFER_MS } from '../shared/constants.js';
 import type { PlayerState, Snapshot } from '../shared/protocol.js';
 import { SnapshotBuffer } from './interpolation.js';
@@ -16,6 +17,7 @@ function player(id: string, x: number): PlayerState {
 		knock: { x: 0, y: 0 },
 		dash: null,
 		dashReadyAt: 0,
+		vote: null,
 	};
 }
 
@@ -27,7 +29,7 @@ function snap(time: number, players: PlayerState[]): Snapshot {
 		coin: { id: 1, x: 50, y: 50 },
 		bigCoin: null,
 		items: [],
-		round: { phase: 'playing', endsAt: null, winners: [] },
+		round: { phase: 'playing', endsAt: null, winners: [], map: 'open', votes: noVotes() },
 		events: [],
 	};
 }

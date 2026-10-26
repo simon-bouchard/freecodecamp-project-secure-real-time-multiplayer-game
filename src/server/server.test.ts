@@ -313,3 +313,12 @@ test('pages loaded before the update still move with the old key-flag input', as
 	const snap = await nextSnapshot(a, (s) => s.players[0]?.lastSeq === 1);
 	expect(snap.players[0]?.x).toBeCloseTo(310);
 });
+
+test('a fresh server opens a map vote for the first player, and counts socket votes', async () => {
+	server = await startServer({ port: 0 });
+	const client = await connect(0);
+	await nextSnapshot(client, (s) => s.round.phase === 'voting');
+	client.emit('vote', 'pinball');
+	const snap = await nextSnapshot(client, (s) => s.round.votes.pinball === 1);
+	expect(snap.players[0]!.vote).toBe('pinball');
+});

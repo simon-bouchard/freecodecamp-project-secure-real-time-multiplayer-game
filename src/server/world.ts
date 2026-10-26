@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import {
 	MAPS,
+	MAP_CHOICES,
+	MAP_IDS,
+	type MapChoice,
 	type MapId,
 	type Obstacle,
+	isMapChoice,
+	noVotes,
 	obstacleGap,
 	pushOutOfObstacles,
 } from '../shared/maps.js';
@@ -35,6 +40,7 @@ import {
 	ROUND_TICKS,
 	TICK_DT,
 	TICK_MS,
+	VOTE_EARLY_TICKS,
 } from '../shared/constants.js';
 import {
 	type Circle,
@@ -104,6 +110,8 @@ export interface RoundResult {
 export interface WorldOptions {
 	/** Called once each time a round ends, before scores reset. */
 	onRoundEnd?: (results: RoundResult[]) => void;
+	/** Ticks of map voting before the first round; 0 (the default) starts it straight away. */
+	firstVoteTicks?: number;
 }
 
 /** Authoritative game state. Advance it with `step()`, once per server tick. */
@@ -113,6 +121,7 @@ export class World {
 	private tick = 0;
 	private roundPhase: RoundPhase = 'waiting';
 	private mapId: MapId = 'open';
+	private readonly firstVoteTicks: number;
 	private ticksLeft = 0;
 	private winners: string[] = [];
 	private bigCoin: TimedPickup | null = null;
@@ -132,6 +141,7 @@ export class World {
 		private readonly newToken: () => string = randomUUID,
 		options: WorldOptions = {},
 	) {
+		this.firstVoteTicks = options.firstVoteTicks ?? 0;
 		if (options.onRoundEnd) {
 			this.roundEndListeners.push(options.onRoundEnd);
 		}
@@ -145,6 +155,45 @@ export class World {
 
 	get map(): MapId {
 		return this.mapId;
+	}
+
+	/** Record a player's map vote; ignored outside a vote, from non-players and for bad choices. */
+	vote(id: string, choice: unknown): void {
+		const entry = this.players.get(id);
+		const voting = this.roundPhase === 'voting' || this.roundPhase === 'results';
+		if (entry && voting && isMapChoice(choice)) {
+			entry.state.vote = choice;
+		}
+	}
+
+	private voteCounts(): Record<MapChoice, number> {
+		const counts = noVotes();
+		for (const { state } of this.players.values()) {
+			if (state.vote) {
+				counts[state.vote]++;
+			}
+		}
+		return counts;
+	}
+
+	/** Most votes wins; ties are broken at random; no votes or Random means a random map. */
+	private chooseMap(): MapId {
+		const counts = this.voteCounts();
+		const top = Math.max(...Object.values(counts));
+		const tied = MAP_CHOICES.filter((c) => counts[c] === top);
+		const choice = top === 0 ? 'random' : tied[Math.floor(this.rng() * tied.length)]!;
+		return choice === 'random' ? MAP_IDS[Math.floor(this.rng() * MAP_IDS.length)]! : choice;
+	}
+
+	/** Start using `id`, pushing anyone now inside an obstacle out; votes start over. */
+	private switchMap(id: MapId): void {
+		this.mapId = id;
+		for (const { state } of this.players.values()) {
+			const { pos } = pushOutOfObstacles(state, this.mapObstacles);
+			state.x = pos.x;
+			state.y = pos.y;
+			state.vote = null;
+		}
 	}
 
 	/** Test hook: switch the map straight away. */
@@ -180,6 +229,7 @@ export class World {
 			knock: { x: 0, y: 0 },
 			dash: null,
 			dashReadyAt: 0,
+			vote: null,
 		};
 		const entry: PlayerEntry = {
 			state,
@@ -196,7 +246,12 @@ export class World {
 		};
 		this.players.set(id, entry);
 		if (this.roundPhase === 'waiting') {
-			this.startRound();
+			if (this.firstVoteTicks > 0) {
+				this.roundPhase = 'voting';
+				this.ticksLeft = this.firstVoteTicks;
+			} else {
+				this.startRound();
+			}
 		}
 		return { ...state };
 	}
@@ -277,9 +332,14 @@ export class World {
 			if (--this.ticksLeft <= 0) {
 				this.endRound();
 			}
-		} else if (this.roundPhase === 'results') {
+		} else if (this.roundPhase === 'results' || this.roundPhase === 'voting') {
 			this.discardInputs();
+			const everyoneVoted = [...this.players.values()].every((e) => e.state.vote !== null);
+			if (this.roundPhase === 'voting' && everyoneVoted) {
+				this.ticksLeft = Math.min(this.ticksLeft, VOTE_EARLY_TICKS);
+			}
 			if (--this.ticksLeft <= 0) {
+				this.switchMap(this.chooseMap());
 				this.respawnCoin();
 				this.startRound();
 			}
@@ -321,6 +381,8 @@ export class World {
 				phase: this.roundPhase,
 				endsAt: this.roundPhase === 'waiting' ? null : time + this.ticksLeft * TICK_MS,
 				winners: [...this.winners],
+				map: this.mapId,
+				votes: this.voteCounts(),
 			},
 			events: this.events.map((e) => ({ ...e })),
 		};
