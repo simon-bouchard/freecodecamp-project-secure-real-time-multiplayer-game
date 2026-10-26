@@ -58,7 +58,7 @@ busy.
 - **Big coins** worth 5 appear every 20-30 seconds and vanish after 5 seconds (they blink
   before they go).
 - **Dash**: Space (or a double tap on the game) bursts you forward at 3x speed for 0.15 s, then
-  needs 3 s to recharge (the ring around your player fills up). Ramming someone with a dash
+  needs 3 s to recharge (the ring around your own player empties and refills). Ramming someone with a dash
   shoves them hard. Your dash starts instantly on your screen; the server enforces the cooldown.
 - **Bumping**: players are solid and bounce off each other. The one who gets hit is shoved
   away harder the faster the other was running into them (a speed boost hits harder), and the

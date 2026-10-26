@@ -8,7 +8,7 @@ import {
 } from '../../../shared/constants.js';
 import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
-import type { DrawnItem, DrawnPlayer, FrameView } from '../../render.js';
+import { type DrawnItem, type DrawnPlayer, type FrameView, chargeArcEnd } from '../../render.js';
 import { labelLayout, labelX } from '../layout.js';
 import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import { SmokeTrail } from '../trail.js';
@@ -186,7 +186,13 @@ function drawPlayer(
 		ctx.strokeStyle = COLORS.text;
 		ctx.lineWidth = 2;
 		ctx.beginPath();
-		ctx.arc(player.x, player.y, PLAYER_RADIUS + 4, 0, Math.PI * 2);
+		ctx.arc(
+			player.x,
+			player.y,
+			PLAYER_RADIUS + 4,
+			-Math.PI / 2,
+			chargeArcEnd(player.dashCharge ?? 1),
+		);
 		ctx.stroke();
 	}
 

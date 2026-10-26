@@ -150,6 +150,7 @@ export class GameSession {
 		const selfId = this.isJoined ? (this.socket.id ?? null) : null;
 		const latest = this.buffer.latest();
 		const players = latest?.players ?? [];
+		const playing = latest?.round.phase === 'playing';
 		const serverNow = this.buffer.serverTimeAt(now);
 		const renderTime = serverNow - RENDER_DELAY_MS;
 		const sampled = this.buffer.sample(renderTime);
@@ -173,7 +174,8 @@ export class GameSession {
 					remainingMs: Math.max(0, e.endsAt - serverNow),
 					totalMs: EFFECT_TICKS[e.kind] * TICK_MS,
 				}));
-				drawn.push({ id: p.id, x: pos.x, y: pos.y, name: p.name, color: p.color, self, effects });
+				const dashCharge = self && playing ? this.dashCharge(serverNow) : null;
+				drawn.push({ ...pos, id: p.id, name: p.name, color: p.color, self, effects, dashCharge });
 			}
 		}
 
@@ -203,7 +205,6 @@ export class GameSession {
 					? new Map(this.latestLeaderboard.highlights.map((h) => [h.playerId, h.period]))
 					: new Map(),
 			touchTarget: null,
-			dashCharge: selfId ? this.dashCharge(serverNow) : null,
 			textScale: 1,
 		};
 	}

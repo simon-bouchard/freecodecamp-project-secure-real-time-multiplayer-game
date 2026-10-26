@@ -8,7 +8,7 @@ import {
 } from '../../../shared/constants.js';
 import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, winnerText } from '../../format.js';
-import type { DrawnItem, DrawnPlayer, FrameView } from '../../render.js';
+import { type DrawnItem, type DrawnPlayer, type FrameView, chargeArcEnd } from '../../render.js';
 import { drawHeaderTexts, drawResultRows, roundStatus } from '../shared.js';
 import type { Theme } from '../types.js';
 
@@ -131,6 +131,13 @@ function drawPlayer(
 	textScale: number,
 ): void {
 	drawSmileyFace(ctx, player, player.self ? COLORS.self : COLORS.other);
+	if (player.dashCharge !== null && player.dashCharge < 1) {
+		ctx.strokeStyle = COLORS.self;
+		ctx.lineWidth = 2;
+		ctx.beginPath();
+		ctx.arc(player.x, player.y, PLAYER_RADIUS + 4, -Math.PI / 2, chargeArcEnd(player.dashCharge));
+		ctx.stroke();
+	}
 	if (player.effects.some((e) => e.kind === 'slow')) {
 		ctx.fillStyle = COLORS.slowTint;
 		ctx.beginPath();

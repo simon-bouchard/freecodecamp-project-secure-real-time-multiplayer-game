@@ -305,19 +305,26 @@ test('a dash while standing still is sent once and inputs keep flowing until it 
 	expect(session.requestDash()).toBe(false);
 });
 
-test('the view reports how charged our dash is', async () => {
+test('only our own player carries the dash charge', async () => {
 	const world = new World();
 	server = await startServer({ port: 0, world });
+	world.join('other', { name: 'Bo', color: PALETTE[3]! });
 	const socket = newSocket();
 	const session = new GameSession(socket, () => NO_MOVE);
 	await connected(socket);
-	expect(session.view(performance.now()).dashCharge).toBeNull();
 	await session.join('Ann', PALETTE[0]!);
 	await waitFor(() => session.predictor.position !== null);
-	expect(session.view(performance.now()).dashCharge).toBe(1);
+	await waitFor(() => session.view(performance.now()).players.length === 2);
+	const charges = () => {
+		const players = session.view(performance.now()).players;
+		return {
+			self: players.find((p) => p.self)!.dashCharge,
+			other: players.find((p) => !p.self)!.dashCharge,
+		};
+	};
+	expect(charges()).toEqual({ self: 1, other: null });
 	session.requestDash();
 	session.tick();
-	const charge = session.view(performance.now()).dashCharge!;
-	expect(charge).toBeGreaterThanOrEqual(0);
-	expect(charge).toBeLessThan(0.1);
+	expect(charges().self).toBeLessThan(0.1);
+	expect(charges().other).toBeNull();
 });
