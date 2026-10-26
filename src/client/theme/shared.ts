@@ -1,3 +1,4 @@
+import { MAPS } from '../../shared/maps.js';
 import { CANVAS } from '../../shared/constants.js';
 import { formatClock, highlightText } from '../format.js';
 import type { FrameView, ScoreRow } from '../render.js';
@@ -9,7 +10,12 @@ export function roundStatus(view: FrameView): string {
 		return 'Waiting for players';
 	}
 	const left = formatClock(round.endsAt - view.serverNow);
-	return round.phase === 'playing' ? `Time ${left}` : `Next round ${left}`;
+	if (round.phase === 'voting') {
+		return `Map vote ${left}`;
+	}
+	return round.phase === 'playing'
+		? `Time ${left} · ${MAPS[round.map].name}`
+		: `Next round ${left}`;
 }
 
 /** Styling for the ranked list on the round-over screen. */

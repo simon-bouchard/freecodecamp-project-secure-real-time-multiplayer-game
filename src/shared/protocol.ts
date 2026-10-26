@@ -88,7 +88,8 @@ export type GameEvent =
 	| { kind: 'coin'; playerId: string }
 	| { kind: 'bigCoin'; playerId: string }
 	| { kind: 'item'; item: ItemKind; playerId: string }
-	| { kind: 'bump'; playerId: string; otherId: string };
+	| { kind: 'bump'; playerId: string; otherId: string }
+	| { kind: 'bumper'; playerId: string };
 
 /** Full game state broadcast once per server tick; `time` is server ms. */
 export interface Snapshot {

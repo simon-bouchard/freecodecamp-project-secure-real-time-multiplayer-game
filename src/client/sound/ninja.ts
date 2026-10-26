@@ -52,6 +52,10 @@ export const ninjaSounds: SoundSet = {
 	},
 	bump: (s, t) => s.playVariant(NINJA_SOUND_FILES, t, { gain: 0.65 }),
 	dash: (s, t) => s.noise(t, { freq: 600, to: 3500, q: 1.5, gain: 0.9, dur: 0.12, attack: 0.04 }),
+	bumper: (s, t) => {
+		s.taiko(t, { freq: 75, dur: 0.5, gain: 0.8 });
+		s.taikoRim(t, 0.4);
+	},
 	roundStart: (s, t) => {
 		s.taiko(t, { gain: 0.6 });
 		s.taiko(t + 0.25, { gain: 0.6 });

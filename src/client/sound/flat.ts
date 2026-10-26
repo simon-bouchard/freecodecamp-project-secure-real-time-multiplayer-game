@@ -70,6 +70,16 @@ export const flatSounds: SoundSet = {
 		),
 	dash: (s, t) =>
 		s.noise(t, { type: 'lowpass', freq: 400, to: 3000, q: 0.7, gain: 0.9, dur: 0.1, attack: 0.05 }),
+	bumper: (s, t) =>
+		s.stepTone(
+			t,
+			[
+				[330, 0],
+				[660, 0.03],
+				[520, 0.07],
+			],
+			{ dur: 0.22, gain: 0.3, slide: 0.015 },
+		),
 	roundStart: (s, t) =>
 		s.stepTone(
 			t,

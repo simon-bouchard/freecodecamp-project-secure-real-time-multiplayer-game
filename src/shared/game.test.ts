@@ -312,6 +312,7 @@ describe('knockStep', () => {
 			pos: { x: 300, y: 300 },
 			knock: { x: 0, y: 0 },
 			touched: false,
+			kicked: false,
 		});
 	});
 });

@@ -148,10 +148,11 @@ export function knockStep(
 	knock: Vec,
 	obstacles: readonly Obstacle[] = NO_OBSTACLES,
 	steer: Vec = { x: 0, y: 0 },
-): { pos: Vec; knock: Vec; touched: boolean } {
+): { pos: Vec; knock: Vec; touched: boolean; kicked: boolean } {
 	let p = { x: pos.x, y: pos.y };
 	const k = { x: knock.x, y: knock.y };
 	let touched = false;
+	let kicked = false;
 	if (knock.x !== 0 || knock.y !== 0) {
 		const steps = Math.max(1, Math.ceil((Math.hypot(knock.x, knock.y) * TICK_DT) / SUBSTEP));
 		for (let i = 0; i < steps; i++) {
@@ -195,11 +196,12 @@ export function knockStep(
 		const kick = Math.max(BUMPER_KICK, BUMPER_SPEEDUP * Math.hypot(vx, vy));
 		k.x = (dx / dl) * kick;
 		k.y = (dy / dl) * kick;
+		kicked = true;
 	}
 	const kx = k.x * KNOCK_DECAY;
 	const ky = k.y * KNOCK_DECAY;
 	const stopped = Math.hypot(kx, ky) < KNOCK_STOP;
-	return { pos: p, knock: stopped ? { x: 0, y: 0 } : { x: kx, y: ky }, touched };
+	return { pos: p, knock: stopped ? { x: 0, y: 0 } : { x: kx, y: ky }, touched, kicked };
 }
 
 /** Direction for held keys: unit length, diagonals normalised, opposite keys cancel. */

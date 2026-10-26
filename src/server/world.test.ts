@@ -1056,3 +1056,12 @@ test('a new map pushes players out of its obstacles', () => {
 		expect(obstacleGap(o, selfOf(world))).toBeGreaterThanOrEqual(PLAYER_RADIUS - 1e-6);
 	}
 });
+
+test('a bumper kick is announced as an event for that player', () => {
+	const world = dashWorld();
+	world.setMap('pinball');
+	world.setPlayerPosition('a', { x: 320 - 39 - 5, y: 262.5 });
+	world.queueInput('a', { seq: 1, move: RIGHT });
+	world.step();
+	expect(world.snapshot(0).events).toContainEqual({ kind: 'bumper', playerId: 'a' });
+});

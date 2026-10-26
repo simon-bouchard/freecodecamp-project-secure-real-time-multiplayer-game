@@ -11,6 +11,7 @@ export const SOUND_CUES = [
 	'slowed',
 	'bump',
 	'dash',
+	'bumper',
 	'roundStart',
 	'tick',
 	'lastTick',
@@ -37,6 +38,7 @@ export class CueTracker {
 	/** Results started this session; a leaderboard naming us now is a fresh best. */
 	private awaitingBest = false;
 	private lastBumpAt = -Infinity;
+	private lastBumperAt = -Infinity;
 
 	snapshot(snapshot: Snapshot, selfId: string | null): SoundCue[] {
 		const cues = this.pickupCues(snapshot, selfId);
@@ -94,6 +96,7 @@ export class CueTracker {
 		this.bestBeforeResults = false;
 		this.awaitingBest = false;
 		this.lastBumpAt = -Infinity;
+		this.lastBumperAt = -Infinity;
 	}
 
 	private pickupCues({ events, players, time }: Snapshot, selfId: string | null): SoundCue[] {
@@ -102,6 +105,13 @@ export class CueTracker {
 		}
 		const playing = players.some((p) => p.id === selfId);
 		return events.flatMap((event): SoundCue[] => {
+			if (event.kind === 'bumper') {
+				if (event.playerId !== selfId || time - this.lastBumperAt < BUMP_GAP_MS) {
+					return [];
+				}
+				this.lastBumperAt = time;
+				return ['bumper'];
+			}
 			if (event.kind === 'bump') {
 				const mine = event.playerId === selfId || event.otherId === selfId;
 				if (!mine || time - this.lastBumpAt < BUMP_GAP_MS) {

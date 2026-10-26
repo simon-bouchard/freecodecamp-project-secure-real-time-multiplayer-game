@@ -77,8 +77,19 @@ describe('obstacle collision', () => {
 
 	test('standing next to a bumper does nothing', () => {
 		const pinball = MAPS.pinball.obstacles;
-		const { knock } = knockStep({ x: CX - 24 - PLAYER_RADIUS, y: CY }, { x: 0, y: 0 }, pinball);
+		const { knock, kicked } = knockStep(
+			{ x: CX - 24 - PLAYER_RADIUS, y: CY },
+			{ x: 0, y: 0 },
+			pinball,
+		);
 		expect(knock).toEqual({ x: 0, y: 0 });
+		expect(kicked).toBe(false);
+	});
+
+	test('a bumper kick is reported', () => {
+		const pinball = MAPS.pinball.obstacles;
+		const start = { x: CX - 24 - PLAYER_RADIUS, y: CY };
+		expect(knockStep(start, { x: 0, y: 0 }, pinball, { x: 300, y: 0 }).kicked).toBe(true);
 	});
 
 	test('dashing into an obstacle ends the dash there', () => {

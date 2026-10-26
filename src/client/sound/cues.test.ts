@@ -192,3 +192,13 @@ test('a chase that bumps every tick plays the bump sound at most every 150 ms', 
 	}
 	expect(cues).toEqual(['bump', 'bump', 'bump']);
 });
+
+test('our own bumper kicks play the bumper sound, at most every 150 ms', () => {
+	const tracker = midRound();
+	const mine: GameEvent[] = [{ kind: 'bumper', playerId: 'me' }];
+	const theirs: GameEvent[] = [{ kind: 'bumper', playerId: 'other' }];
+	expect(tracker.snapshot(snap(10_033, { events: theirs }), 'me')).toEqual([]);
+	expect(tracker.snapshot(snap(10_066, { events: mine }), 'me')).toEqual(['bumper']);
+	expect(tracker.snapshot(snap(10_100, { events: mine }), 'me')).toEqual([]);
+	expect(tracker.snapshot(snap(10_300, { events: mine }), 'me')).toEqual(['bumper']);
+});

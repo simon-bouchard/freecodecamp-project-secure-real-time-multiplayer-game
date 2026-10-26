@@ -496,7 +496,15 @@ export class World {
 	/** One tick of every player's knockback (shared with client prediction). */
 	private applyKnockback(): void {
 		for (const { state, steer } of this.players.values()) {
-			const { pos, knock, touched } = knockStep(state, state.knock, this.mapObstacles, steer);
+			const { pos, knock, touched, kicked } = knockStep(
+				state,
+				state.knock,
+				this.mapObstacles,
+				steer,
+			);
+			if (kicked) {
+				this.events.push({ kind: 'bumper', playerId: state.id });
+			}
 			state.x = pos.x;
 			state.y = pos.y;
 			state.knock = knock;
