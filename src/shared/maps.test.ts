@@ -110,3 +110,22 @@ describe('obstacle collision', () => {
 		}
 	});
 });
+
+describe('grazing', () => {
+	test('dashing along a lane wall keeps the dash going', () => {
+		const lanes = MAPS.lanes.obstacles;
+		const start = { x: 80, y: CY - 75 - PLAYER_RADIUS };
+		let state = applyInput(start, RIGHT, null, true, 1, RIGHT, lanes);
+		let after = knockStep(state.pos, { x: 0, y: 0 }, lanes, state.velocity);
+		expect(after.touched).toBe(false);
+		state = applyInput(after.pos, RIGHT, state.dash, false, 1, RIGHT, lanes);
+		expect(state.dash?.left).toBe(3);
+	});
+
+	test('dashing into the wall still ends it', () => {
+		const lanes = MAPS.lanes.obstacles;
+		const start = { x: 150, y: CY - 75 - PLAYER_RADIUS - 5 };
+		const state = applyInput(start, DOWN, null, true, 1, DOWN, lanes);
+		expect(state.dash).toBeNull();
+	});
+});

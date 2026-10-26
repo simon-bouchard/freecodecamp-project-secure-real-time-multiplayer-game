@@ -59,8 +59,9 @@ busy.
   before they go).
 - **Maps**: Open field, Pillars, Crossroads, Center ring, Lanes and Pinball (whose bumpers
   bounce you off). Obstacles are solid; knockback bounces off them and hitting one ends a dash.
-  Players pick the map by vote: a 10 s vote before the first round (it ends 2 s after everyone
-  has voted) and during every results screen. Most votes wins; ties, no votes or Random pick at
+  Players pick the map by vote: on the start screen (your pick is your vote when you join), in a
+  10 s vote before the first round (it ends 2 s after everyone has voted) and on every round-over
+  screen. Most votes wins; ties, no votes or Random pick at
   random. Collisions with obstacles are predicted, so moving along walls never rubber-bands.
 - **Dash**: Space (or a double tap on the game) bursts you forward at 3x speed for 0.15 s, then
   needs 3 s to recharge (the ring around your own player empties and refills). Ramming someone with a dash

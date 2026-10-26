@@ -1065,3 +1065,14 @@ test('a bumper kick is announced as an event for that player', () => {
 	world.step();
 	expect(world.snapshot(0).events).toContainEqual({ kind: 'bumper', playerId: 'a' });
 });
+
+test('switching to the ring never leaves anyone stuck between two beads', () => {
+	const world = dashWorld();
+	steps(world, ROUND_TICKS);
+	world.setPlayerPosition('a', { x: 418.5, y: 328.4 });
+	world.vote('a', 'ring');
+	steps(world, RESULTS_TICKS);
+	for (const o of MAPS.ring.obstacles) {
+		expect(obstacleGap(o, selfOf(world))).toBeGreaterThanOrEqual(PLAYER_RADIUS - 1e-6);
+	}
+});

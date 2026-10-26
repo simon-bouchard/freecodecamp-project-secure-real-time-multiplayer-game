@@ -49,6 +49,8 @@ export class GameSession {
 	private latestLeaderboard: LeaderboardView | null = null;
 	/** Our vote, shown until the server's snapshot confirms it. */
 	private pendingVote: MapChoice | null = null;
+	/** Map picked on the start screen, voted at the first open vote after joining. */
+	private picked: MapChoice | null = null;
 
 	constructor(
 		private readonly socket: GameSocket,
@@ -143,8 +145,20 @@ export class GameSession {
 			return false;
 		}
 		this.pendingVote = choice;
+		this.picked = null;
 		this.socket.emit('vote', choice);
 		return true;
+	}
+
+	/** Pick a map from the start screen; it is voted as soon as we are in an open vote. */
+	preferMap(choice: MapChoice): void {
+		this.picked = choice;
+		this.vote(choice);
+	}
+
+	/** The start-screen pick not voted yet, or null. */
+	get mapPick(): MapChoice | null {
+		return this.picked;
 	}
 
 	/** Dash with the next tick's input if joined, playing and off cooldown; true if it will. */
@@ -271,9 +285,13 @@ export class GameSession {
 		if (self?.vote === this.pendingVote || (phase !== 'voting' && phase !== 'results')) {
 			this.pendingVote = null;
 		}
+		if (this.picked && self && self.vote === null) {
+			this.vote(this.picked);
+		}
 	}
 
 	private reset(): void {
+		this.pendingVote = null;
 		this.predictor.reset();
 		this.buffer.clear();
 		this.lastSent = NO_MOVE;

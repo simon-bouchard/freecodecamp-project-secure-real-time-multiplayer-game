@@ -188,8 +188,16 @@ export class World {
 	/** Start using `id`, pushing anyone now inside an obstacle out; votes start over. */
 	private switchMap(id: MapId): void {
 		this.mapId = id;
+		const inside = (p: Vec) =>
+			this.mapObstacles.some((o) => obstacleGap(o, p) < PLAYER_RADIUS - 1e-6);
 		for (const { state } of this.players.values()) {
-			const { pos } = pushOutOfObstacles(state, this.mapObstacles);
+			let pos: Vec = { x: state.x, y: state.y };
+			for (let i = 0; i < 8 && inside(pos); i++) {
+				pos = pushOutOfObstacles(pos, this.mapObstacles).pos;
+			}
+			if (inside(pos)) {
+				pos = this.playerSpawn();
+			}
 			state.x = pos.x;
 			state.y = pos.y;
 			state.vote = null;

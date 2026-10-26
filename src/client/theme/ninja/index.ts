@@ -307,7 +307,7 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
 
 	const x = 160;
-	const y = 110;
+	const y = 92;
 	const width = 320;
 	const height = 280;
 	ctx.fillStyle = COLORS.scrollRod;
@@ -351,7 +351,6 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillText(`Next round in ${seconds}`, centerX, y + height - 32);
 }
 
-/** The ninja theme: training ground, headband ninjas, narutomaki, ramen and paper tags. */
 /** Stone pillars, wooden plank walls and taiko-drum bumpers. */
 function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstacle[]): void {
 	for (const o of obstacles) {
@@ -438,6 +437,7 @@ function drawTaiko(ctx: CanvasRenderingContext2D, o: { x: number; y: number; r: 
 	ctx.fill();
 }
 
+/** The ninja theme: training ground, headband ninjas, narutomaki, ramen and paper tags. */
 export const ninjaTheme: Theme = {
 	id: 'ninja',
 	bodyClass: 'theme-ninja',

@@ -224,7 +224,7 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	const width = 320;
 	const height = 270;
 	const x = (CANVAS.width - width) / 2;
-	const y = 115;
+	const y = 97;
 	ctx.fillStyle = COLORS.card;
 	ctx.strokeStyle = COLORS.cardEdge;
 	ctx.lineWidth = 1;
@@ -262,7 +262,6 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	ctx.fillText(`Next round in ${seconds}`, centerX, y + height - 22);
 }
 
-/** Plain flat shapes: solid discs on dark slate, gold dots and rings, round boost badges. */
 /** Plain slate shapes; bumpers are gold rings. */
 function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstacle[]): void {
 	for (const o of obstacles) {
@@ -288,6 +287,7 @@ function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstac
 	}
 }
 
+/** Plain flat shapes: solid discs on dark slate, gold dots and rings, round boost badges. */
 export const flatTheme: Theme = {
 	id: 'flat',
 	bodyClass: 'theme-flat',

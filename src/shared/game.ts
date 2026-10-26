@@ -166,6 +166,7 @@ export function knockStep(
 			}
 			const out = pushOutOfObstacles(clamped, obstacles);
 			p = out.pos;
+			touched ||= out.normals.length > 0;
 			for (const n of out.normals) {
 				const into = k.x * n.x + k.y * n.y;
 				if (into < 0) {
@@ -177,14 +178,14 @@ export function knockStep(
 	}
 	for (const o of obstacles) {
 		const { n, gap } = obstacleContact(o, p);
-		if (gap > PLAYER_RADIUS + 0.5) {
-			continue;
-		}
-		touched = true;
 		const vx = steer.x + knock.x;
 		const vy = steer.y + knock.y;
 		const vn = vx * n.x + vy * n.y;
-		if (o.kind !== 'bumper' || vn >= 0) {
+		if (gap > PLAYER_RADIUS + 0.5 || vn >= 0) {
+			continue;
+		}
+		touched = true;
+		if (o.kind !== 'bumper') {
 			continue;
 		}
 		const rx = vx - 2 * vn * n.x;

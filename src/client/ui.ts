@@ -273,44 +273,40 @@ export function voteTitle(phase: RoundPhase, msLeft: number, canVote: boolean): 
 const PREVIEW_WIDTH = 96;
 const PREVIEW_HEIGHT = Math.round((PREVIEW_WIDTH * ARENA.height) / ARENA.width);
 
-/** Map cards under the game while a vote is open: previews, live counts, our vote highlighted. */
-export class MapVotePanel {
-	private readonly title: HTMLElement;
+/** One button per map choice: a preview in the current theme, its name and its vote count. */
+export class MapCards {
 	private readonly cards = new Map<
 		MapChoice,
-		{ button: HTMLButtonElement; count: HTMLElement; preview: HTMLCanvasElement }
+		{ button: HTMLButtonElement; count: HTMLElement; preview: HTMLCanvasElement; name: string }
 	>();
 	private shown = '';
 
-	constructor(
-		private readonly root: HTMLElement,
-		onVote: (choice: MapChoice) => void,
-	) {
-		this.title = root.querySelector('.map-vote-title')!;
-		const list = root.querySelector('.map-vote-cards')!;
+	constructor(list: HTMLElement, onPick: (choice: MapChoice) => void) {
 		for (const choice of MAP_CHOICES) {
+			const name = choice === 'random' ? 'Random' : MAPS[choice].name;
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.className = 'map-card';
+			button.title = name;
 			const preview = document.createElement('canvas');
 			preview.width = PREVIEW_WIDTH * 2;
 			preview.height = PREVIEW_HEIGHT * 2;
-			const name = document.createElement('span');
-			name.className = 'map-card-name';
-			name.textContent = choice === 'random' ? 'Random' : MAPS[choice].name;
+			const label = document.createElement('span');
+			label.className = 'map-card-name';
+			label.textContent = name;
 			const count = document.createElement('span');
 			count.className = 'map-card-count';
-			button.append(preview, name, count);
+			button.append(preview, label, count);
 			button.addEventListener('click', () => {
-				onVote(choice);
+				onPick(choice);
 				button.blur();
 			});
 			list.append(button);
-			this.cards.set(choice, { button, count, preview });
+			this.cards.set(choice, { button, count, preview, name });
 		}
 	}
 
-	/** Redraw the small map previews in `theme`'s look (call when the theme changes). */
+	/** Redraw the previews in `theme`'s look (call when the theme changes). */
 	drawPreviews(theme: Theme): void {
 		for (const [choice, { preview }] of this.cards) {
 			const ctx = preview.getContext('2d');
@@ -335,7 +331,48 @@ export class MapVotePanel {
 		}
 	}
 
-	/** Show or hide the panel and refresh counts; only touches the page when something changed. */
+	/** Highlight `selected` and show `votes` (hidden when null); only touches the page on change. */
+	update(
+		votes: Record<MapChoice, number> | null,
+		selected: MapChoice | null,
+		enabled: boolean,
+	): void {
+		const key = `${JSON.stringify(votes)}|${selected}|${enabled}`;
+		if (key === this.shown) {
+			return;
+		}
+		this.shown = key;
+		for (const [choice, { button, count, name }] of this.cards) {
+			const n = votes?.[choice] ?? 0;
+			count.textContent = votes ? String(n) : '';
+			count.hidden = !votes;
+			button.setAttribute(
+				'aria-label',
+				votes ? `${name}, ${n} ${n === 1 ? 'vote' : 'votes'}` : name,
+			);
+			button.setAttribute('aria-pressed', String(selected === choice));
+			button.disabled = !enabled;
+		}
+	}
+}
+
+/** The map vote along the bottom of the arena while a vote is open (first round and results). */
+export class MapVoteOverlay {
+	private readonly title: HTMLElement;
+	private readonly cards: MapCards;
+
+	constructor(
+		private readonly root: HTMLElement,
+		onVote: (choice: MapChoice) => void,
+	) {
+		this.title = root.querySelector('.map-vote-title')!;
+		this.cards = new MapCards(root.querySelector('.map-vote-cards')!, onVote);
+	}
+
+	drawPreviews(theme: Theme): void {
+		this.cards.drawPreviews(theme);
+	}
+
 	update(
 		round: RoundState | null,
 		myVote: MapChoice | null,
@@ -343,22 +380,14 @@ export class MapVotePanel {
 		serverNow: number,
 	): void {
 		const open = round !== null && (round.phase === 'voting' || round.phase === 'results');
-		const title = open ? voteTitle(round.phase, (round.endsAt ?? 0) - serverNow, canVote) : '';
-		const key = open ? `${title}|${myVote}|${canVote}|${JSON.stringify(round.votes)}` : 'closed';
-		if (key === this.shown) {
-			return;
-		}
-		this.shown = key;
 		this.root.hidden = !open;
 		if (!open) {
 			return;
 		}
-		this.title.textContent = title;
-		for (const [choice, { button, count }] of this.cards) {
-			const votes = round.votes[choice];
-			count.textContent = votes === 1 ? '1 vote' : `${votes} votes`;
-			button.setAttribute('aria-pressed', String(myVote === choice));
-			button.disabled = !canVote;
+		const title = voteTitle(round.phase, (round.endsAt ?? 0) - serverNow, canVote);
+		if (this.title.textContent !== title) {
+			this.title.textContent = title;
 		}
+		this.cards.update(round.votes, myVote, canVote);
 	}
 }

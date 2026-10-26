@@ -352,3 +352,19 @@ test('voting sends the choice, shows it straight away, and spectators cannot vot
 	await waitFor(() => session.buffer.latest()?.round.votes.lanes === 1);
 	expect(session.view(performance.now()).myVote).toBe('lanes');
 });
+
+test('a map picked on the start screen is voted as soon as we join an open vote', async () => {
+	const world = new World(Math.random, undefined, { firstVoteTicks: 300 });
+	server = await startServer({ port: 0, world });
+	world.join('other', { name: 'Bo', color: PALETTE[3]! });
+	const socket = newSocket();
+	const session = new GameSession(socket, () => NO_MOVE);
+	await connected(socket);
+	await waitFor(() => session.buffer.latest()?.round.phase === 'voting');
+	session.preferMap('ring');
+	expect(session.mapPick).toBe('ring');
+	expect(world.snapshot(0).round.votes.ring).toBe(0);
+	await session.join('Ann', PALETTE[0]!);
+	await waitFor(() => session.buffer.latest()?.round.votes.ring === 1);
+	expect(session.view(performance.now()).myVote).toBe('ring');
+});

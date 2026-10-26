@@ -176,7 +176,7 @@ function drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void {
 function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 	const round = view.round!;
 	const centerX = ARENA.x + ARENA.width / 2;
-	let y = ARENA.y + 80;
+	let y = ARENA.y + 60;
 
 	ctx.fillStyle = COLORS.overlay;
 	ctx.fillRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
@@ -204,7 +204,7 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 
 	const seconds = Math.max(0, Math.ceil(((round.endsAt ?? 0) - view.serverNow) / 1000));
 	ctx.fillStyle = COLORS.text;
-	ctx.fillText(`Next round in ${seconds}`, centerX, ARENA.y + ARENA.height - 40);
+	ctx.fillText(`Next round in ${seconds}`, centerX, ARENA.y + ARENA.height - 115);
 }
 
 function drawArena(ctx: CanvasRenderingContext2D): void {
@@ -215,7 +215,6 @@ function drawArena(ctx: CanvasRenderingContext2D): void {
 	ctx.strokeRect(ARENA.x, ARENA.y, ARENA.width, ARENA.height);
 }
 
-/** The original look: grey arena, yellow smiley for you, red smileys for everyone else. */
 /** Grey outlines; bumpers are a double ring. */
 function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstacle[]): void {
 	ctx.strokeStyle = COLORS.wall;
@@ -236,6 +235,7 @@ function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstac
 	}
 }
 
+/** The original look: grey arena, yellow smiley for you, red smileys for everyone else. */
 export const classicTheme: Theme = {
 	id: 'classic',
 	bodyClass: 'theme-classic',
