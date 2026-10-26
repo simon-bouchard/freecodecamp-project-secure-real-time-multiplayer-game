@@ -27,6 +27,7 @@ import {
 } from '../shared/constants.js';
 import { NO_MOVE, circlesOverlap } from '../shared/game.js';
 import type { Move, Vec } from '../shared/protocol.js';
+import { MAPS, obstacleGap } from '../shared/maps.js';
 import { World } from './world.js';
 
 const RIGHT: Move = { x: 1, y: 0 };
@@ -914,4 +915,60 @@ test('after a dash, standing still does not keep a dash-strength shove', () => {
 	world.setPlayerPosition('b', { x: selfOf(world).x + 25, y: 300 });
 	world.step();
 	expect(knockOf(world, 'b').x).toBeLessThanOrEqual(BUMP_BASE + BUMP_STRENGTH + 1e-6);
+});
+
+const MID = { x: 320, y: 262.5 };
+
+test('players stop at obstacles on the current map', () => {
+	const world = dashWorld();
+	world.setMap('pillars');
+	world.setPlayerPosition('a', { x: MID.x, y: MID.y - 61 });
+	for (let seq = 1; seq <= 4; seq++) {
+		world.queueInput('a', { seq, move: { x: 0, y: 1 } });
+		world.step();
+	}
+	expect(selfOf(world).y).toBeCloseTo(MID.y - 26 - PLAYER_RADIUS);
+});
+
+test('a dash ram never leaves the victim inside an obstacle', () => {
+	const world = bumpWorld({ x: MID.x, y: MID.y - 41 - 45 }, { x: MID.x, y: MID.y - 41 });
+	world.setMap('pillars');
+	world.queueInput('a', { seq: 1, move: { x: 0, y: 1 }, dash: true });
+	for (let tick = 0; tick < 10; tick++) {
+		if (tick > 0) world.queueInput('a', { seq: tick + 1, move: { x: 0, y: 1 } });
+		world.step();
+		for (const p of world.snapshot(0).players) {
+			for (const o of MAPS.pillars.obstacles) {
+				expect(obstacleGap(o, p)).toBeGreaterThanOrEqual(PLAYER_RADIUS - 1e-6);
+			}
+		}
+	}
+});
+
+test('coins respawn outside obstacles', () => {
+	const world = dashWorld();
+	world.setMap('crossroads');
+	for (let i = 0; i < 100; i++) {
+		const { coin } = world.snapshot(0);
+		for (const o of MAPS.crossroads.obstacles) {
+			expect(obstacleGap(o, coin)).toBeGreaterThanOrEqual(COIN_RADIUS);
+		}
+		world.setPlayerPosition('a', coin);
+		world.step();
+	}
+});
+
+test('a magnet never pulls a coin into an obstacle', () => {
+	const world = dashWorld();
+	world.setMap('pillars');
+	world.setPlayerPosition('a', { x: MID.x, y: MID.y + 50 });
+	world.setCoinPosition({ x: MID.x, y: MID.y - 45 });
+	world.setEffect('a', 'magnet', 100);
+	for (let i = 0; i < 30; i++) {
+		world.step();
+		const { coin } = world.snapshot(0);
+		expect(obstacleGap(MAPS.pillars.obstacles[0]!, coin)).toBeGreaterThanOrEqual(
+			COIN_RADIUS - 1e-6,
+		);
+	}
 });

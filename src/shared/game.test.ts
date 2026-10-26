@@ -311,6 +311,7 @@ describe('knockStep', () => {
 		expect(knockStep({ x: 300, y: 300 }, { x: 0, y: 0 })).toEqual({
 			pos: { x: 300, y: 300 },
 			knock: { x: 0, y: 0 },
+			touched: false,
 		});
 	});
 });

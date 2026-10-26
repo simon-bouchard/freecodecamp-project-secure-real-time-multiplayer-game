@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import {
+	MAPS,
+	type MapId,
+	type Obstacle,
+	obstacleGap,
+	pushOutOfObstacles,
+} from '../shared/maps.js';
+import {
 	BIG_COIN_DELAY_TICKS,
 	BIG_COIN_LIFETIME_TICKS,
 	BIG_COIN_RADIUS,
@@ -105,6 +112,7 @@ export class World {
 	private coin: CoinState;
 	private tick = 0;
 	private roundPhase: RoundPhase = 'waiting';
+	private mapId: MapId = 'open';
 	private ticksLeft = 0;
 	private winners: string[] = [];
 	private bigCoin: TimedPickup | null = null;
@@ -133,6 +141,19 @@ export class World {
 	/** Also call `listener` whenever a round ends. */
 	addRoundEndListener(listener: (results: RoundResult[]) => void): void {
 		this.roundEndListeners.push(listener);
+	}
+
+	get map(): MapId {
+		return this.mapId;
+	}
+
+	/** Test hook: switch the map straight away. */
+	setMap(id: MapId): void {
+		this.mapId = id;
+	}
+
+	private get mapObstacles(): readonly Obstacle[] {
+		return MAPS[this.mapId].obstacles;
 	}
 
 	get phase(): RoundPhase {
@@ -387,6 +408,7 @@ export class World {
 					startDash,
 					factor,
 					entry.facing,
+					this.mapObstacles,
 				);
 				if (startDash) {
 					entry.dashCooldown = DASH_COOLDOWN_TICKS;
@@ -411,11 +433,14 @@ export class World {
 
 	/** One tick of every player's knockback (shared with client prediction). */
 	private applyKnockback(): void {
-		for (const { state } of this.players.values()) {
-			const { pos, knock } = knockStep(state, state.knock);
+		for (const { state, steer } of this.players.values()) {
+			const { pos, knock, touched } = knockStep(state, state.knock, this.mapObstacles, steer);
 			state.x = pos.x;
 			state.y = pos.y;
 			state.knock = knock;
+			if (touched) {
+				state.dash = null;
+			}
 		}
 	}
 
@@ -437,6 +462,11 @@ export class World {
 				}
 				const n = dist === 0 ? { x: 1, y: 0 } : { x: dx / dist, y: dy / dist };
 				separate(a.state, b.state, n);
+				for (const { state } of [a, b]) {
+					const { pos } = pushOutOfObstacles(state, this.mapObstacles);
+					state.x = pos.x;
+					state.y = pos.y;
+				}
 				const relX = a.steer.x + a.state.knock.x - b.steer.x - b.state.knock.x;
 				const relY = a.steer.y + a.state.knock.y - b.steer.y - b.state.knock.y;
 				if (relX * n.x + relY * n.y <= 0) {
@@ -500,7 +530,9 @@ export class World {
 			if (!nearest) {
 				return coin;
 			}
-			return { ...coin, ...pullToward(coin, nearest, MAGNET_PULL_SPEED * TICK_DT, radius) };
+			const next = pullToward(coin, nearest, MAGNET_PULL_SPEED * TICK_DT, radius);
+			const blocked = this.mapObstacles.some((o) => obstacleGap(o, next) < radius);
+			return blocked ? coin : { ...coin, ...next };
 		};
 		this.coin = pull(this.coin, COIN_RADIUS);
 		if (this.bigCoin) {
@@ -513,7 +545,10 @@ export class World {
 		if (--this.nextItemTimer <= 0) {
 			this.nextItemTimer = this.randomTicks(ITEM_DELAY_TICKS);
 			if (this.items.length < MAX_BOARD_ITEMS) {
-				this.addItem(this.nextItemKind(), pickSpawn(ITEM_RADIUS, this.obstacles(), this.rng));
+				this.addItem(
+					this.nextItemKind(),
+					pickSpawn(ITEM_RADIUS, this.obstacles(), this.rng, this.mapObstacles),
+				);
 			}
 		}
 	}
@@ -601,7 +636,7 @@ export class World {
 				this.nextBigCoinTimer = this.randomTicks(BIG_COIN_DELAY_TICKS);
 			}
 		} else if (--this.nextBigCoinTimer <= 0) {
-			const pos = pickSpawn(BIG_COIN_RADIUS, this.obstacles(), this.rng);
+			const pos = pickSpawn(BIG_COIN_RADIUS, this.obstacles(), this.rng, this.mapObstacles);
 			this.setBigCoin(pos);
 		}
 	}
@@ -646,7 +681,10 @@ export class World {
 	}
 
 	private respawnCoin(): void {
-		this.coin = { id: this.coin.id + 1, ...pickSpawn(COIN_RADIUS, this.obstacles(), this.rng) };
+		this.coin = {
+			id: this.coin.id + 1,
+			...pickSpawn(COIN_RADIUS, this.obstacles(), this.rng, this.mapObstacles),
+		};
 	}
 
 	private startRound(): void {
@@ -701,7 +739,7 @@ export class World {
 
 	/** Random player position not touching the coin, so nobody scores just by joining. */
 	private playerSpawn(): Vec {
-		return pickSpawn(PLAYER_RADIUS, this.pickupCircles(), this.rng);
+		return pickSpawn(PLAYER_RADIUS, this.pickupCircles(), this.rng, this.mapObstacles);
 	}
 
 	private freeColor(): string {

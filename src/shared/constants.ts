@@ -117,6 +117,10 @@ export const KNOCK_DECAY = 0.05 ** (TICK_DT / KNOCK_FADE_S);
 export const KNOCK_STOP = 2;
 /** Share of knockback speed kept when bouncing off a wall. */
 export const WALL_BOUNCE = 0.6;
+/** A bumper kicks a player away at least this fast (px/s)... */
+export const BUMPER_KICK = 900;
+/** ...or this many times their incoming speed, whichever is more. */
+export const BUMPER_SPEEDUP = 1.2;
 
 export const SPEED_BOOST = 1.5;
 export const SLOW_FACTOR = 0.5;

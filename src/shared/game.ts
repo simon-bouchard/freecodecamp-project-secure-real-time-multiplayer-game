@@ -1,4 +1,6 @@
 import {
+	BUMPER_KICK,
+	BUMPER_SPEEDUP,
 	COIN_RADIUS,
 	COIN_SPAWN_ATTEMPTS,
 	DASH_INPUTS,
@@ -23,6 +25,16 @@ import type {
 	Move,
 	Vec,
 } from './protocol.js';
+import {
+	NO_OBSTACLES,
+	type Obstacle,
+	obstacleContact,
+	obstacleGap,
+	pushOutOfObstacles,
+} from './maps.js';
+
+/** Longest single move (px) before checking obstacles again, so fast shoves cannot tunnel. */
+const SUBSTEP = 8;
 
 /** A circle to keep spawns away from. */
 export interface Circle {
@@ -47,12 +59,38 @@ export function clampToArena(pos: Vec, radius: number): Vec {
  * Advance a player by `dt` seconds along `move`. Speed scales with the move's length, capped at
  * 1, so no direction is faster than `PLAYER_SPEED * speedMultiplier`.
  */
-export function movePlayer(pos: Vec, move: Move, dt: number, speedMultiplier = 1): Vec {
+export function movePlayer(
+	pos: Vec,
+	move: Move,
+	dt: number,
+	speedMultiplier = 1,
+	obstacles: readonly Obstacle[] = NO_OBSTACLES,
+): Vec {
 	if (move.x === 0 && move.y === 0) {
 		return { x: pos.x, y: pos.y };
 	}
 	const v = moveVelocity(move, speedMultiplier);
-	return clampToArena({ x: pos.x + v.x * dt, y: pos.y + v.y * dt }, PLAYER_RADIUS);
+	return moveThrough(pos, { x: v.x * dt, y: v.y * dt }, obstacles).pos;
+}
+
+/** Move a player by `delta` in small steps, staying in the arena and out of obstacles. */
+function moveThrough(
+	pos: Vec,
+	delta: Vec,
+	obstacles: readonly Obstacle[],
+): { pos: Vec; normals: Vec[] } {
+	const steps = Math.max(1, Math.ceil(Math.hypot(delta.x, delta.y) / SUBSTEP));
+	let p = { x: pos.x, y: pos.y };
+	const normals: Vec[] = [];
+	for (let i = 0; i < steps; i++) {
+		p = clampToArena({ x: p.x + delta.x / steps, y: p.y + delta.y / steps }, PLAYER_RADIUS);
+		if (obstacles.length > 0) {
+			const out = pushOutOfObstacles(p, obstacles);
+			p = out.pos;
+			normals.push(...out.normals);
+		}
+	}
+	return { pos: p, normals };
 }
 
 /** Velocity in px/s a move asks for; never faster than `PLAYER_SPEED * speedMultiplier`. */
@@ -77,6 +115,7 @@ export function applyInput(
 	startDash: boolean,
 	speedMultiplier: number,
 	fallbackDir: Vec,
+	obstacles: readonly Obstacle[] = NO_OBSTACLES,
 ): { pos: Vec; dash: DashState | null; velocity: Vec } {
 	let active = dash;
 	if (!active && startDash) {
@@ -86,35 +125,81 @@ export function applyInput(
 	}
 	if (!active) {
 		return {
-			pos: movePlayer(pos, move, TICK_DT, speedMultiplier),
+			pos: movePlayer(pos, move, TICK_DT, speedMultiplier, obstacles),
 			dash: null,
 			velocity: moveVelocity(move, speedMultiplier),
 		};
 	}
 	const speed = PLAYER_SPEED * DASH_SPEED * speedMultiplier;
 	const velocity = { x: active.dir.x * speed, y: active.dir.y * speed };
-	const next = clampToArena(
-		{ x: pos.x + velocity.x * TICK_DT, y: pos.y + velocity.y * TICK_DT },
-		PLAYER_RADIUS,
-	);
-	const left = active.left - 1;
-	return { pos: next, dash: left > 0 ? { left, dir: active.dir } : null, velocity };
+	const moved = moveThrough(pos, { x: velocity.x * TICK_DT, y: velocity.y * TICK_DT }, obstacles);
+	const left = moved.normals.length > 0 ? 0 : active.left - 1;
+	return { pos: moved.pos, dash: left > 0 ? { left, dir: active.dir } : null, velocity };
 }
 
 /**
- * One tick of knockback: move by it, bounce off walls (reversing and damping that axis), then
- * let it fade. Shared by server and client so prediction replays it exactly.
+ * One tick of knockback: move by it (in small steps), bounce off walls and obstacles (reversing
+ * and damping the part going into them), get kicked by bumpers, then fade. Shared by server and
+ * client so prediction replays it exactly. `steer` is this tick's own movement velocity, and
+ * `touched` says whether the player ended up against an obstacle (which ends a dash).
  */
-export function knockStep(pos: Vec, knock: Vec): { pos: Vec; knock: Vec } {
-	if (knock.x === 0 && knock.y === 0) {
-		return { pos: { x: pos.x, y: pos.y }, knock: { x: 0, y: 0 } };
+export function knockStep(
+	pos: Vec,
+	knock: Vec,
+	obstacles: readonly Obstacle[] = NO_OBSTACLES,
+	steer: Vec = { x: 0, y: 0 },
+): { pos: Vec; knock: Vec; touched: boolean } {
+	let p = { x: pos.x, y: pos.y };
+	const k = { x: knock.x, y: knock.y };
+	let touched = false;
+	if (knock.x !== 0 || knock.y !== 0) {
+		const steps = Math.max(1, Math.ceil((Math.hypot(knock.x, knock.y) * TICK_DT) / SUBSTEP));
+		for (let i = 0; i < steps; i++) {
+			const moved = { x: p.x + (knock.x * TICK_DT) / steps, y: p.y + (knock.y * TICK_DT) / steps };
+			const clamped = clampToArena(moved, PLAYER_RADIUS);
+			if (clamped.x !== moved.x && k.x * knock.x > 0) {
+				k.x = -k.x * WALL_BOUNCE;
+			}
+			if (clamped.y !== moved.y && k.y * knock.y > 0) {
+				k.y = -k.y * WALL_BOUNCE;
+			}
+			const out = pushOutOfObstacles(clamped, obstacles);
+			p = out.pos;
+			for (const n of out.normals) {
+				const into = k.x * n.x + k.y * n.y;
+				if (into < 0) {
+					k.x -= (1 + WALL_BOUNCE) * into * n.x;
+					k.y -= (1 + WALL_BOUNCE) * into * n.y;
+				}
+			}
+		}
 	}
-	const moved = { x: pos.x + knock.x * TICK_DT, y: pos.y + knock.y * TICK_DT };
-	const clamped = clampToArena(moved, PLAYER_RADIUS);
-	const kx = (clamped.x === moved.x ? knock.x : -knock.x * WALL_BOUNCE) * KNOCK_DECAY;
-	const ky = (clamped.y === moved.y ? knock.y : -knock.y * WALL_BOUNCE) * KNOCK_DECAY;
+	for (const o of obstacles) {
+		const { n, gap } = obstacleContact(o, p);
+		if (gap > PLAYER_RADIUS + 0.5) {
+			continue;
+		}
+		touched = true;
+		const vx = steer.x + knock.x;
+		const vy = steer.y + knock.y;
+		const vn = vx * n.x + vy * n.y;
+		if (o.kind !== 'bumper' || vn >= 0) {
+			continue;
+		}
+		const rx = vx - 2 * vn * n.x;
+		const ry = vy - 2 * vn * n.y;
+		const rl = Math.hypot(rx, ry) || 1;
+		const dx = rx / rl + n.x;
+		const dy = ry / rl + n.y;
+		const dl = Math.hypot(dx, dy) || 1;
+		const kick = Math.max(BUMPER_KICK, BUMPER_SPEEDUP * Math.hypot(vx, vy));
+		k.x = (dx / dl) * kick;
+		k.y = (dy / dl) * kick;
+	}
+	const kx = k.x * KNOCK_DECAY;
+	const ky = k.y * KNOCK_DECAY;
 	const stopped = Math.hypot(kx, ky) < KNOCK_STOP;
-	return { pos: clamped, knock: stopped ? { x: 0, y: 0 } : { x: kx, y: ky } };
+	return { pos: p, knock: stopped ? { x: 0, y: 0 } : { x: kx, y: ky }, touched };
 }
 
 /** Direction for held keys: unit length, diagonals normalised, opposite keys cancel. */
@@ -139,12 +224,21 @@ export function randomPointInArena(radius: number, rng: () => number = Math.rand
 }
 
 /** Random position for a circle of `radius` not overlapping `avoid`; gives up after a few tries. */
-export function pickSpawn(radius: number, avoid: Circle[], rng: () => number = Math.random): Vec {
+export function pickSpawn(
+	radius: number,
+	avoid: Circle[],
+	rng: () => number = Math.random,
+	obstacles: readonly Obstacle[] = NO_OBSTACLES,
+): Vec {
+	const blocked = (p: Vec) => obstacles.some((o) => obstacleGap(o, p) < radius);
 	let candidate = randomPointInArena(radius, rng);
 	for (let attempt = 1; attempt < COIN_SPAWN_ATTEMPTS; attempt++) {
-		if (!avoid.some((c) => circlesOverlap(c, c.r, candidate, radius))) {
+		if (!blocked(candidate) && !avoid.some((c) => circlesOverlap(c, c.r, candidate, radius))) {
 			return candidate;
 		}
+		candidate = randomPointInArena(radius, rng);
+	}
+	for (let attempt = 0; attempt < 200 && blocked(candidate); attempt++) {
 		candidate = randomPointInArena(radius, rng);
 	}
 	return candidate;
