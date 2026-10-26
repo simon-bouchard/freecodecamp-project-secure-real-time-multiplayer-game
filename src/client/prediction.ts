@@ -1,5 +1,6 @@
 import { DASH_COOLDOWN_TICKS, SNAP_DISTANCE, TICK_MS } from '../shared/constants.js';
 import { applyInput, knockStep, speedMultiplier } from '../shared/game.js';
+import { NO_OBSTACLES, type Obstacle } from '../shared/maps.js';
 import type {
 	DashState,
 	InputMessage,
@@ -23,6 +24,8 @@ export class Predictor {
 	private remaining = new Map<ItemKind, number>();
 	/** Knockback still to play out after the latest predicted step. */
 	private knock: Vec = { x: 0, y: 0 };
+	/** Obstacles of the map being played, from the latest snapshot. */
+	private obstacles: readonly Obstacle[] = NO_OBSTACLES;
 	/** Dash still running after the latest predicted step. */
 	private dash: DashState | null = null;
 	/** Our last non-zero move direction: a dash while standing still goes this way. */
@@ -107,7 +110,12 @@ export class Predictor {
 	 * Rebase on the server's state and replay unapplied inputs, one per server tick: input i gets
 	 * effects with more than i ticks left and is followed by one knockback step, as on the server.
 	 */
-	reconcile(server: PlayerState, snapshotTime = 0): void {
+	reconcile(
+		server: PlayerState,
+		snapshotTime = 0,
+		obstacles: readonly Obstacle[] = NO_OBSTACLES,
+	): void {
+		this.obstacles = obstacles;
 		this.remaining = new Map(
 			server.effects.map((e) => [e.kind, Math.round((e.endsAt - snapshotTime) / TICK_MS)]),
 		);
@@ -188,9 +196,9 @@ export class Predictor {
 	): { pos: Vec; dash: DashState | null; knock: Vec } {
 		const factor = this.factorAt(index);
 		const start = msg.dash === true && dash === null;
-		const moved = applyInput(pos, msg.move, dash, start, factor, this.facing);
-		const knocked = knockStep(moved.pos, knock);
-		return { pos: knocked.pos, dash: moved.dash, knock: knocked.knock };
+		const moved = applyInput(pos, msg.move, dash, start, factor, this.facing, this.obstacles);
+		const knocked = knockStep(moved.pos, knock, this.obstacles, moved.velocity);
+		return { pos: knocked.pos, dash: knocked.touched ? null : moved.dash, knock: knocked.knock };
 	}
 
 	/** Speed factor for the input that will be the `index`-th unacknowledged one. */

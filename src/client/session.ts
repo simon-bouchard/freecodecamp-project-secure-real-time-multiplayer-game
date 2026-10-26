@@ -6,6 +6,7 @@ import {
 	TICK_MS,
 } from '../shared/constants.js';
 import { NO_MOVE, calculateRank, sortScoreboard } from '../shared/game.js';
+import { MAPS, type MapChoice } from '../shared/maps.js';
 import type {
 	ClientToServerEvents,
 	Move,
@@ -46,6 +47,8 @@ export class GameSession {
 	private isJoined = false;
 	private pendingJoin: Promise<JoinResult> | null = null;
 	private latestLeaderboard: LeaderboardView | null = null;
+	/** Our vote, shown until the server's snapshot confirms it. */
+	private pendingVote: MapChoice | null = null;
 
 	constructor(
 		private readonly socket: GameSocket,
@@ -133,6 +136,17 @@ export class GameSession {
 		}
 	}
 
+	/** Vote for the next map while a vote is open and we are playing; true if sent. */
+	vote(choice: MapChoice): boolean {
+		const phase = this.buffer.latest()?.round.phase;
+		if (!this.isJoined || (phase !== 'voting' && phase !== 'results')) {
+			return false;
+		}
+		this.pendingVote = choice;
+		this.socket.emit('vote', choice);
+		return true;
+	}
+
 	/** Dash with the next tick's input if joined, playing and off cooldown; true if it will. */
 	requestDash(): boolean {
 		const playing = this.buffer.latest()?.round.phase === 'playing';
@@ -205,6 +219,7 @@ export class GameSession {
 					? new Map(this.latestLeaderboard.highlights.map((h) => [h.playerId, h.period]))
 					: new Map(),
 			touchTarget: null,
+			myVote: this.pendingVote ?? players.find((p) => p.id === selfId)?.vote ?? null,
 			textScale: 1,
 		};
 	}
@@ -250,7 +265,11 @@ export class GameSession {
 		this.buffer.push(snapshot, receivedAt);
 		const self = snapshot.players.find((p) => p.id === this.socket.id);
 		if (self) {
-			this.predictor.reconcile(self, snapshot.time);
+			this.predictor.reconcile(self, snapshot.time, MAPS[snapshot.round.map].obstacles);
+		}
+		const { phase } = snapshot.round;
+		if (self?.vote === this.pendingVote || (phase !== 'voting' && phase !== 'results')) {
+			this.pendingVote = null;
 		}
 	}
 

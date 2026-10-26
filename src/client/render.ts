@@ -1,3 +1,4 @@
+import type { MapChoice } from '../shared/maps.js';
 import type { ItemKind, Period, RoundState, Vec } from '../shared/protocol.js';
 import type { Theme } from './theme/types.js';
 
@@ -54,6 +55,8 @@ export interface FrameView {
 	touchTarget: Vec | null;
 	/** Text enlargement for small displays (1 at full size). */
 	textScale: number;
+	/** Our map vote while a vote is open, or null. */
+	myVote: MapChoice | null;
 }
 
 /** Faint ring at the touch target, the same in every theme. */

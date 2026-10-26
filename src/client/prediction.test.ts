@@ -1,7 +1,9 @@
 import { expect, test } from 'vitest';
 import { KNOCK_DECAY, TICK_DT, TICK_MS } from '../shared/constants.js';
 import { NO_MOVE, knockStep, movePlayer } from '../shared/game.js';
-import type { PlayerState } from '../shared/protocol.js';
+import { MAPS, type MapId } from '../shared/maps.js';
+import type { Move, PlayerState } from '../shared/protocol.js';
+import { World } from '../server/world.js';
 import { Predictor } from './prediction.js';
 
 const RIGHT = { x: 1, y: 0 };
@@ -224,4 +226,38 @@ test('a cancelled dash request is forgotten and does not use up the cooldown', (
 	expect(p.dashPending).toBe(false);
 	expect(p.applyLocalInput(RIGHT)!.dash).toBeUndefined();
 	expect(p.requestDash(0)).toBe(true);
+});
+
+/** Feed the same inputs to a server world and a predictor; positions must match every tick. */
+function predictAgainstServer(
+	map: MapId,
+	start: { x: number; y: number },
+	move: Move,
+	ticks: number,
+) {
+	const world = new World(() => 0);
+	world.addPlayer('me');
+	world.setMap(map);
+	world.setCoinPosition({ x: 600, y: 440 });
+	world.setPlayerPosition('me', start);
+	const p = new Predictor();
+	p.reconcile(world.snapshot(0).players[0]!, 0, MAPS[map].obstacles);
+	const gaps: number[] = [];
+	for (let i = 0; i < ticks; i++) {
+		world.queueInput('me', p.applyLocalInput(move)!);
+		world.step();
+		const server = world.snapshot(0).players[0]!;
+		gaps.push(Math.hypot(server.x - p.position!.x, server.y - p.position!.y));
+	}
+	return gaps;
+}
+
+test('prediction against a pillar matches the server', () => {
+	const gaps = predictAgainstServer('pillars', { x: 320, y: 262.5 - 61 }, { x: 0, y: 1 }, 6);
+	for (const gap of gaps) expect(gap).toBeLessThan(1e-9);
+});
+
+test('prediction bouncing off a bumper matches the server', () => {
+	const gaps = predictAgainstServer('pinball', { x: 320 - 39 - 20, y: 262.5 }, RIGHT, 20);
+	for (const gap of gaps) expect(gap).toBeLessThan(1e-9);
 });

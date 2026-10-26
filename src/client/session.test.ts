@@ -335,3 +335,20 @@ test('only our own player carries the dash charge', async () => {
 	expect(charges().self).toBeLessThan(0.1);
 	expect(charges().other).toBeNull();
 });
+
+test('voting sends the choice, shows it straight away, and spectators cannot vote', async () => {
+	const world = new World(Math.random, undefined, { firstVoteTicks: 300 });
+	server = await startServer({ port: 0, world });
+	const socket = newSocket();
+	const session = new GameSession(socket, () => NO_MOVE);
+	await connected(socket);
+	await waitFor(() => session.buffer.latest() !== undefined);
+	expect(session.vote('lanes')).toBe(false);
+
+	await session.join('Ann', PALETTE[0]!);
+	await waitFor(() => session.buffer.latest()?.round.phase === 'voting');
+	expect(session.vote('lanes')).toBe(true);
+	expect(session.view(performance.now()).myVote).toBe('lanes');
+	await waitFor(() => session.buffer.latest()?.round.votes.lanes === 1);
+	expect(session.view(performance.now()).myVote).toBe('lanes');
+});
