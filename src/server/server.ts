@@ -1,9 +1,8 @@
-import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { Server } from 'socket.io';
-import { TICK_MS, VOTE_TICKS } from '../shared/constants.js';
+import { TICK_MS } from '../shared/constants.js';
 import { isPlayerKey, isValidJoinRequest, parseInputMessage } from '../shared/game.js';
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/protocol.js';
 import { createApp } from './app.js';
@@ -30,7 +29,7 @@ export interface ServerOptions {
 
 /** Start the HTTP + socket.io server and the fixed-rate game loop. */
 export async function startServer(opts: ServerOptions): Promise<GameServer> {
-	const world = opts.world ?? new World(Math.random, randomUUID, { firstVoteTicks: VOTE_TICKS });
+	const world = opts.world ?? new World();
 	const app = createApp(opts.clientDir ?? path.resolve('dist/client'), opts.devClientUrl);
 	const httpServer = createServer(app);
 	const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer);

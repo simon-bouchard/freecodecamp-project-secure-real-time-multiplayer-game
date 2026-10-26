@@ -351,3 +351,10 @@ describe('dash', () => {
 		expect(state).toEqual({ pos: { x: 310, y: 300 }, dash: null, velocity: { x: 300, y: 0 } });
 	});
 });
+
+test('a join request may carry a map pick, which must be a real choice', () => {
+	expect(isValidJoinRequest({ name: 'Ann', color: '#fff', map: 'lanes' })).toBe(true);
+	expect(isValidJoinRequest({ name: 'Ann', color: '#fff', map: 'random' })).toBe(true);
+	expect(isValidJoinRequest({ name: 'Ann', color: '#fff', map: 'moon' })).toBe(false);
+	expect(isValidJoinRequest({ name: 'Ann', color: '#fff' })).toBe(true);
+});

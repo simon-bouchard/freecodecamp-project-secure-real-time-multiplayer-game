@@ -28,6 +28,7 @@ import type {
 import {
 	NO_OBSTACLES,
 	type Obstacle,
+	isMapChoice,
 	obstacleContact,
 	obstacleGap,
 	pushOutOfObstacles,
@@ -342,8 +343,9 @@ export function isValidJoinRequest(value: unknown): value is JoinRequest {
 	if (typeof value !== 'object' || value === null) {
 		return false;
 	}
-	const { name, color, token } = value as Record<string, unknown>;
+	const { name, color, token, map } = value as Record<string, unknown>;
 	return (
+		(map === undefined || isMapChoice(map)) &&
 		typeof name === 'string' &&
 		name.length <= 64 &&
 		typeof color === 'string' &&

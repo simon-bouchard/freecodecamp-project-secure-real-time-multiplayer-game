@@ -13,17 +13,19 @@ import { CueTracker } from './sound/cues.js';
 import {
 	loadBoardPrefs,
 	loadOrCreatePlayerKey,
+	loadMapPick,
 	loadProfile,
 	loadSoundOn,
 	loadThemeId,
 	saveBoardPrefs,
+	saveMapPick,
 	saveProfile,
 	saveSoundOn,
 	saveThemeId,
 } from './storage.js';
 import { THEMES } from './theme/index.js';
 import { THEME_OPTIONS, type ThemeId, isThemeId } from './theme/registry.js';
-import { BestRunsPanel, JoinPanel, MapCards, MapVoteOverlay, Scoreboard } from './ui.js';
+import { BestRunsPanel, JoinPanel, MapStrip, Scoreboard, startTitle, voteTitle } from './ui.js';
 
 const JOIN_MESSAGES: Record<JoinFailure, string> = {
 	'color-taken': 'That colour was just taken',
@@ -118,12 +120,16 @@ async function join(name: string, color: string): Promise<void> {
 	}
 }
 
-const mapVote = new MapVoteOverlay(document.getElementById('map-vote')!, (choice) =>
-	session.vote(choice),
-);
-const mapPick = new MapCards(document.querySelector<HTMLElement>('.map-pick')!, (choice) =>
-	session.preferMap(choice),
-);
+/** Map cards along the bottom of the arena: a pick on the start screen, a vote after a round. */
+const mapStrip = new MapStrip(document.getElementById('map-vote')!, (choice) => {
+	if (panel.visible) {
+		session.preferMap(choice);
+		saveMapPick(storage, choice);
+	} else {
+		session.vote(choice);
+	}
+});
+session.preferMap(loadMapPick(storage));
 
 const themeSelects = [...document.querySelectorAll<HTMLSelectElement>('.theme-select')];
 let theme = THEMES[loadThemeId(storage)];
@@ -134,14 +140,14 @@ function applyTheme(id: ThemeId): void {
 	document.body.classList.remove(...Object.values(THEMES).map((t) => t.bodyClass));
 	document.body.classList.add(theme.bodyClass);
 	document.getElementById('join-name-label')!.textContent = theme.joinNameLabel;
+	document.getElementById('join-name')!.setAttribute('placeholder', theme.joinNameLabel);
 	document.getElementById('join-hint')!.textContent = touchScreen
 		? theme.joinTouchHint
 		: theme.joinHint;
 	for (const select of themeSelects) {
 		select.value = id;
 	}
-	mapVote.drawPreviews(theme);
-	mapPick.drawPreviews(theme);
+	mapStrip.drawPreviews(theme);
 }
 
 for (const select of themeSelects) {
@@ -200,12 +206,18 @@ function frame(now: number): void {
 	drawFrame(ctx, { ...view, touchTarget, textScale: scale }, theme, now);
 	scoreboard.update(view.scoreboard);
 	bestRuns.update(session.leaderboard, Date.now());
-	mapVote.update(view.round, view.myVote, session.joined, view.serverNow);
+	const round = view.round;
+	const results = round?.phase === 'results' ? round : null;
 	if (panel.visible) {
-		const phase = view.round?.phase;
-		const open = phase === 'voting' || phase === 'results';
-		mapPick.update(open ? view.round!.votes : null, session.mapPick ?? view.myVote, true);
+		const selected = session.mapPick ?? view.myVote;
+		mapStrip.update(startTitle(round?.phase ?? 'waiting'), results?.votes ?? null, selected, true);
+	} else if (results) {
+		const title = voteTitle((results.endsAt ?? 0) - view.serverNow, session.joined);
+		mapStrip.update(title, results.votes, view.myVote, session.joined);
+	} else {
+		mapStrip.update(null, null, null, false);
 	}
+
 	if (panel.visible) {
 		panel.setTaken(new Map(view.scoreboard.map((row) => [row.color, row.name])));
 	}

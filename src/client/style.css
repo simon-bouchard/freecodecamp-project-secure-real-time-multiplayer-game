@@ -30,17 +30,27 @@ canvas {
 	border-radius: 4px;
 }
 
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Hangs just under the header so the map strip along the bottom of the arena stays visible. */
 .join-panel {
 	position: absolute;
-	top: 50%;
+	top: 11.5%;
 	left: 50%;
-	transform: translate(-50%, -50%);
-	width: min(320px, calc(100% - 32px));
+	transform: translateX(-50%);
+	width: min(300px, calc(100% - 24px));
 	box-sizing: border-box;
-	padding: 20px;
+	padding: 14px 16px;
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
 	background: rgba(17, 17, 17, 0.94);
 	border: 1px solid #444;
 	border-radius: 8px;
@@ -72,12 +82,14 @@ canvas {
 
 .swatches {
 	display: grid;
-	grid-template-columns: repeat(6, 1fr);
-	gap: 8px;
+	grid-template-columns: repeat(6, 34px);
+	justify-content: space-between;
+	gap: 6px;
 }
 
 .swatch {
 	position: relative;
+	width: 34px;
 	aspect-ratio: 1;
 	border-radius: 50%;
 	border: 2px solid transparent;
@@ -117,8 +129,11 @@ canvas {
 	transform: rotate(-45deg);
 }
 
+.join-error:empty {
+	display: none;
+}
+
 .join-error {
-	min-height: 1.2em;
 	margin: 0;
 	font-size: 13px;
 	color: #ff8080;
@@ -207,11 +222,81 @@ canvas {
 		width: 100%;
 		max-width: 640px;
 	}
+}
 
-	/* The stage is shorter than the panel here; hang it from the top so its heading stays visible. */
+/* Wide layout: the side panel is exactly as tall as the game; the best runs list scrolls inside. */
+@media (min-width: 901px) {
+	.layout {
+		display: grid;
+		grid-template-columns: minmax(0, 640px) 220px;
+		justify-content: center;
+		align-content: start;
+		align-items: start;
+	}
+
+	.scoreboard {
+		align-self: stretch;
+		contain: size;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.best-runs {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.best-runs-list {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		scrollbar-width: thin;
+		scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+	}
+}
+
+/* Phones: the arena is short, so the start panel keeps only name, colour and Join. */
+@media (max-width: 600px) {
 	.join-panel {
-		top: 8px;
-		transform: translateX(-50%);
+		top: 8.5%;
+		width: calc(100% - 16px);
+		padding: 6px 10px;
+		gap: 4px;
+	}
+
+	.join-panel h2 {
+		font-size: 17px;
+		margin: 0;
+	}
+
+	.join-panel input {
+		padding: 5px 7px;
+		font-size: 15px;
+	}
+
+	.join-panel button[type='submit'] {
+		padding: 6px;
+	}
+
+	.join-panel .theme-picker,
+	#join-hint {
+		display: none;
+	}
+
+	.swatches {
+		grid-template-columns: repeat(6, 22px);
+		gap: 4px;
+	}
+
+	.swatch {
+		width: 22px;
+	}
+
+	.theme-ninja .join-panel {
+		border-top-width: 8px;
 	}
 }
 

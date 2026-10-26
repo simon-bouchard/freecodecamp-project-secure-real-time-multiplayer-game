@@ -74,10 +74,6 @@ export const NAME_MAX_LENGTH = 12;
 
 export const ROUND_TICKS = 60 * TICK_RATE;
 export const RESULTS_TICKS = 8 * TICK_RATE;
-/** Map vote before the first round... */
-export const VOTE_TICKS = 10 * TICK_RATE;
-/** ...which ends this soon once every player has voted. */
-export const VOTE_EARLY_TICKS = 2 * TICK_RATE;
 
 export const BIG_COIN_RADIUS = 14;
 export const BIG_COIN_VALUE = 5;

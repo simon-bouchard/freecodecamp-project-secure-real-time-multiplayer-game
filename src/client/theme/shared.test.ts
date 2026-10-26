@@ -23,8 +23,7 @@ test('the header shows the time and the map while playing', () => {
 	expect(roundStatus(view({ map: 'open' }))).toBe('Time 0:55 · Open field');
 });
 
-test('the header counts down the map vote and the results', () => {
-	expect(roundStatus(view({ phase: 'voting', endsAt: 8_000 }))).toBe('Map vote 0:08');
+test('the header counts down the results', () => {
 	expect(roundStatus(view({ phase: 'results', endsAt: 8_000 }))).toBe('Next round 0:08');
 	expect(roundStatus(view(null))).toBe('Waiting for players');
 });

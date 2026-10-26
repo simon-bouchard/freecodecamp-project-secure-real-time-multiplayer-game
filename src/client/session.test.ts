@@ -9,6 +9,7 @@ import {
 	BIG_COIN_LIFETIME_TICKS,
 	ITEM_LIFETIME_TICKS,
 	PALETTE,
+	ROUND_TICKS,
 	TICK_MS,
 } from '../shared/constants.js';
 import { NO_MOVE } from '../shared/game.js';
@@ -336,8 +337,8 @@ test('only our own player carries the dash charge', async () => {
 	expect(charges().other).toBeNull();
 });
 
-test('voting sends the choice, shows it straight away, and spectators cannot vote', async () => {
-	const world = new World(Math.random, undefined, { firstVoteTicks: 300 });
+test('voting on the round-over screen sends the choice and shows it straight away', async () => {
+	const world = new World();
 	server = await startServer({ port: 0, world });
 	const socket = newSocket();
 	const session = new GameSession(socket, () => NO_MOVE);
@@ -346,25 +347,42 @@ test('voting sends the choice, shows it straight away, and spectators cannot vot
 	expect(session.vote('lanes')).toBe(false);
 
 	await session.join('Ann', PALETTE[0]!);
-	await waitFor(() => session.buffer.latest()?.round.phase === 'voting');
+	await waitFor(() => session.buffer.latest()?.round.phase === 'playing');
+	for (let i = 0; i < ROUND_TICKS; i++) world.step();
+	await waitFor(() => session.buffer.latest()?.round.phase === 'results');
 	expect(session.vote('lanes')).toBe(true);
 	expect(session.view(performance.now()).myVote).toBe('lanes');
 	await waitFor(() => session.buffer.latest()?.round.votes.lanes === 1);
 	expect(session.view(performance.now()).myVote).toBe('lanes');
 });
 
-test('a map picked on the start screen is voted as soon as we join an open vote', async () => {
-	const world = new World(Math.random, undefined, { firstVoteTicks: 300 });
+test('a start-screen pick is the first map in an empty game', async () => {
+	const world = new World();
 	server = await startServer({ port: 0, world });
-	world.join('other', { name: 'Bo', color: PALETTE[3]! });
 	const socket = newSocket();
 	const session = new GameSession(socket, () => NO_MOVE);
 	await connected(socket);
-	await waitFor(() => session.buffer.latest()?.round.phase === 'voting');
+	await waitFor(() => session.buffer.latest()?.round.phase === 'waiting');
 	session.preferMap('ring');
-	expect(session.mapPick).toBe('ring');
-	expect(world.snapshot(0).round.votes.ring).toBe(0);
 	await session.join('Ann', PALETTE[0]!);
-	await waitFor(() => session.buffer.latest()?.round.votes.ring === 1);
-	expect(session.view(performance.now()).myVote).toBe('ring');
+	await waitFor(() => session.buffer.latest()?.round.phase === 'playing');
+	expect(world.map).toBe('ring');
+	expect(session.mapPick).toBeNull();
+});
+
+test('joining a running game keeps the pick and votes it on the next round-over screen', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world });
+	world.join('other', { name: 'Bo', color: PALETTE[3]!, map: 'open' });
+	const socket = newSocket();
+	const session = new GameSession(socket, () => NO_MOVE);
+	await connected(socket);
+	await waitFor(() => session.buffer.latest()?.round.phase === 'playing');
+	session.preferMap('pinball');
+	await session.join('Ann', PALETTE[0]!);
+	expect(world.map).toBe('open');
+	expect(session.mapPick).toBe('pinball');
+	for (let i = 0; i < ROUND_TICKS; i++) world.step();
+	await waitFor(() => session.buffer.latest()?.round.votes.pinball === 1);
+	expect(session.mapPick).toBeNull();
 });

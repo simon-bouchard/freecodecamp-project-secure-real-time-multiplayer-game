@@ -261,13 +261,17 @@ export class BestRunsPanel {
 	}
 }
 
-/** Heading of the map vote panel; `msLeft` is the time until the vote closes. */
-export function voteTitle(phase: RoundPhase, msLeft: number, canVote: boolean): string {
+/** Heading of the round-over map vote; `msLeft` is the time until the vote closes. */
+export function voteTitle(msLeft: number, canVote: boolean): string {
 	const seconds = `${Math.max(0, Math.ceil(msLeft / 1000))} s`;
-	if (!canVote) {
-		return `Next map vote · ${seconds} (join to vote)`;
-	}
-	return phase === 'voting' ? `Pick the map · ${seconds}` : `Vote for the next map · ${seconds}`;
+	return canVote
+		? `Vote for the next map · ${seconds}`
+		: `Next map vote · ${seconds} (join to vote)`;
+}
+
+/** Heading of the map strip on the start screen: the pick is either the first map or a vote. */
+export function startTitle(phase: RoundPhase): string {
+	return phase === 'waiting' ? 'Pick the first map' : 'Pick a map for the next round';
 }
 
 const PREVIEW_WIDTH = 96;
@@ -356,38 +360,37 @@ export class MapCards {
 	}
 }
 
-/** The map vote along the bottom of the arena while a vote is open (first round and results). */
-export class MapVoteOverlay {
+/** The strip of map cards along the bottom of the arena: start-screen pick or round-over vote. */
+export class MapStrip {
 	private readonly title: HTMLElement;
 	private readonly cards: MapCards;
 
 	constructor(
 		private readonly root: HTMLElement,
-		onVote: (choice: MapChoice) => void,
+		onPick: (choice: MapChoice) => void,
 	) {
 		this.title = root.querySelector('.map-vote-title')!;
-		this.cards = new MapCards(root.querySelector('.map-vote-cards')!, onVote);
+		this.cards = new MapCards(root.querySelector('.map-vote-cards')!, onPick);
 	}
 
 	drawPreviews(theme: Theme): void {
 		this.cards.drawPreviews(theme);
 	}
 
+	/** Show the strip with `title` (null hides it), counts when `votes` is given, `selected` lit. */
 	update(
-		round: RoundState | null,
-		myVote: MapChoice | null,
-		canVote: boolean,
-		serverNow: number,
+		title: string | null,
+		votes: Record<MapChoice, number> | null,
+		selected: MapChoice | null,
+		enabled: boolean,
 	): void {
-		const open = round !== null && (round.phase === 'voting' || round.phase === 'results');
-		this.root.hidden = !open;
-		if (!open) {
+		this.root.hidden = title === null;
+		if (title === null) {
 			return;
 		}
-		const title = voteTitle(round.phase, (round.endsAt ?? 0) - serverNow, canVote);
 		if (this.title.textContent !== title) {
 			this.title.textContent = title;
 		}
-		this.cards.update(round.votes, myVote, canVote);
+		this.cards.update(votes, selected, enabled);
 	}
 }

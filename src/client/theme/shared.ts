@@ -10,9 +10,6 @@ export function roundStatus(view: FrameView): string {
 		return 'Waiting for players';
 	}
 	const left = formatClock(round.endsAt - view.serverNow);
-	if (round.phase === 'voting') {
-		return `Map vote ${left}`;
-	}
 	return round.phase === 'playing'
 		? `Time ${left} · ${MAPS[round.map].name}`
 		: `Next round ${left}`;

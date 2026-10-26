@@ -89,9 +89,21 @@ export class GameSession {
 		if (this.isJoined && this.profile) {
 			return Promise.resolve({ ok: true, token: this.profile.token });
 		}
-		this.pendingJoin ??= this.sendJoin({ name, color }).finally(() => {
-			this.pendingJoin = null;
-		});
+		if (!this.pendingJoin) {
+			const map = this.picked ?? undefined;
+			// In an empty game the pick becomes the first map, so there is nothing left to vote.
+			const emptyGame = (this.buffer.latest()?.round.phase ?? 'waiting') === 'waiting';
+			this.pendingJoin = this.sendJoin({ name, color, ...(map ? { map } : {}) })
+				.then((res) => {
+					if (res.ok && emptyGame) {
+						this.picked = null;
+					}
+					return res;
+				})
+				.finally(() => {
+					this.pendingJoin = null;
+				});
+		}
 		return this.pendingJoin;
 	}
 
@@ -141,7 +153,7 @@ export class GameSession {
 	/** Vote for the next map while a vote is open and we are playing; true if sent. */
 	vote(choice: MapChoice): boolean {
 		const phase = this.buffer.latest()?.round.phase;
-		if (!this.isJoined || (phase !== 'voting' && phase !== 'results')) {
+		if (!this.isJoined || phase !== 'results') {
 			return false;
 		}
 		this.pendingVote = choice;
@@ -282,7 +294,7 @@ export class GameSession {
 			this.predictor.reconcile(self, snapshot.time, MAPS[snapshot.round.map].obstacles);
 		}
 		const { phase } = snapshot.round;
-		if (self?.vote === this.pendingVote || (phase !== 'voting' && phase !== 'results')) {
+		if (self?.vote === this.pendingVote || phase !== 'results') {
 			this.pendingVote = null;
 		}
 		if (this.picked && self && self.vote === null) {

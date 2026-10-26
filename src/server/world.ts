@@ -40,7 +40,6 @@ import {
 	ROUND_TICKS,
 	TICK_DT,
 	TICK_MS,
-	VOTE_EARLY_TICKS,
 } from '../shared/constants.js';
 import {
 	type Circle,
@@ -110,8 +109,6 @@ export interface RoundResult {
 export interface WorldOptions {
 	/** Called once each time a round ends, before scores reset. */
 	onRoundEnd?: (results: RoundResult[]) => void;
-	/** Ticks of map voting before the first round; 0 (the default) starts it straight away. */
-	firstVoteTicks?: number;
 }
 
 /** Authoritative game state. Advance it with `step()`, once per server tick. */
@@ -121,7 +118,6 @@ export class World {
 	private tick = 0;
 	private roundPhase: RoundPhase = 'waiting';
 	private mapId: MapId = 'open';
-	private readonly firstVoteTicks: number;
 	private ticksLeft = 0;
 	private winners: string[] = [];
 	private bigCoin: TimedPickup | null = null;
@@ -141,7 +137,6 @@ export class World {
 		private readonly newToken: () => string = randomUUID,
 		options: WorldOptions = {},
 	) {
-		this.firstVoteTicks = options.firstVoteTicks ?? 0;
 		if (options.onRoundEnd) {
 			this.roundEndListeners.push(options.onRoundEnd);
 		}
@@ -160,8 +155,7 @@ export class World {
 	/** Record a player's map vote; ignored outside a vote, from non-players and for bad choices. */
 	vote(id: string, choice: unknown): void {
 		const entry = this.players.get(id);
-		const voting = this.roundPhase === 'voting' || this.roundPhase === 'results';
-		if (entry && voting && isMapChoice(choice)) {
+		if (entry && this.roundPhase === 'results' && isMapChoice(choice)) {
 			entry.state.vote = choice;
 		}
 	}
@@ -181,7 +175,10 @@ export class World {
 		const counts = this.voteCounts();
 		const top = Math.max(...Object.values(counts));
 		const tied = MAP_CHOICES.filter((c) => counts[c] === top);
-		const choice = top === 0 ? 'random' : tied[Math.floor(this.rng() * tied.length)]!;
+		return this.resolveChoice(top === 0 ? 'random' : tied[Math.floor(this.rng() * tied.length)]!);
+	}
+
+	private resolveChoice(choice: MapChoice): MapId {
 		return choice === 'random' ? MAP_IDS[Math.floor(this.rng() * MAP_IDS.length)]! : choice;
 	}
 
@@ -223,6 +220,7 @@ export class World {
 		name = id,
 		color = this.freeColor(),
 		key: string | null = null,
+		firstMap: MapChoice = 'open',
 	): PlayerState {
 		const pos = this.playerSpawn();
 		const state: PlayerState = {
@@ -254,12 +252,8 @@ export class World {
 		};
 		this.players.set(id, entry);
 		if (this.roundPhase === 'waiting') {
-			if (this.firstVoteTicks > 0) {
-				this.roundPhase = 'voting';
-				this.ticksLeft = this.firstVoteTicks;
-			} else {
-				this.startRound();
-			}
+			this.switchMap(this.resolveChoice(firstMap));
+			this.startRound();
 		}
 		return { ...state };
 	}
@@ -286,7 +280,7 @@ export class World {
 		if ([...this.players.values()].some((e) => e.state.color === req.color)) {
 			return { ok: false, reason: 'color-taken' };
 		}
-		this.addPlayer(id, name, req.color, key);
+		this.addPlayer(id, name, req.color, key, isMapChoice(req.map) ? req.map : 'open');
 		const token = this.newToken();
 		this.players.get(id)!.token = token;
 		return { ok: true, token };
@@ -340,12 +334,8 @@ export class World {
 			if (--this.ticksLeft <= 0) {
 				this.endRound();
 			}
-		} else if (this.roundPhase === 'results' || this.roundPhase === 'voting') {
+		} else if (this.roundPhase === 'results') {
 			this.discardInputs();
-			const everyoneVoted = [...this.players.values()].every((e) => e.state.vote !== null);
-			if (this.roundPhase === 'voting' && everyoneVoted) {
-				this.ticksLeft = Math.min(this.ticksLeft, VOTE_EARLY_TICKS);
-			}
 			if (--this.ticksLeft <= 0) {
 				this.switchMap(this.chooseMap());
 				this.respawnCoin();

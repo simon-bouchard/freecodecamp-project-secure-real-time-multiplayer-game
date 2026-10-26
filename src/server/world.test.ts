@@ -23,8 +23,6 @@ import {
 	ROUND_TICKS,
 	TICK_DT,
 	TICK_MS,
-	VOTE_EARLY_TICKS,
-	VOTE_TICKS,
 	innerBounds,
 } from '../shared/constants.js';
 import { NO_MOVE, circlesOverlap } from '../shared/game.js';
@@ -975,51 +973,45 @@ test('a magnet never pulls a coin into an obstacle', () => {
 	}
 });
 
-function votingWorld(rng: () => number = () => 0): World {
-	const world = new World(rng, tokens(), { firstVoteTicks: VOTE_TICKS });
-	world.addPlayer('a');
-	world.addPlayer('b');
-	return world;
-}
-
-test('the first player opens a map vote, and round 1 starts on the winner', () => {
-	const world = votingWorld();
-	expect(world.phase).toBe('voting');
-	expect(world.snapshot(0).round.map).toBe('open');
-	world.vote('a', 'lanes');
-	world.vote('b', 'lanes');
-	expect(world.snapshot(0).round.votes.lanes).toBe(2);
-	steps(world, VOTE_EARLY_TICKS - 1);
-	expect(world.phase).toBe('voting');
-	world.step();
+test("the first player's start-screen pick is the first map, later picks don't change it", () => {
+	const world = new World(() => 0, tokens());
+	world.join('a', { name: 'Ann', color: color(0), map: 'lanes' });
 	expect(world.phase).toBe('playing');
-	expect(world.snapshot(0).round.map).toBe('lanes');
-	expect(world.snapshot(0).players.map((p) => p.vote)).toEqual([null, null]);
+	expect(world.map).toBe('lanes');
+	world.join('b', { name: 'Bo', color: color(1), map: 'ring' });
+	expect(world.map).toBe('lanes');
 });
 
-test('without votes the first vote runs its full time, then picks a random map', () => {
-	const world = votingWorld(() => 0.99);
-	steps(world, VOTE_TICKS - 1);
-	expect(world.phase).toBe('voting');
-	world.step();
-	expect(world.phase).toBe('playing');
-	expect(world.map).toBe('pinball');
+test('Random starts the first round on a random map; no pick (old pages) on the open field', () => {
+	const random = new World(() => 0.99, tokens());
+	random.join('a', { name: 'Ann', color: color(0), map: 'random' });
+	expect(random.map).toBe('pinball');
+	const old = new World(() => 0.99, tokens());
+	old.join('a', { name: 'Ann', color: color(0) });
+	expect(old.map).toBe('open');
 });
 
-test('ties are broken at random among the tied choices, and Random picks any map', () => {
+test('round-over ties are broken at random among the tied choices, and Random picks any map', () => {
+	const roundOver = (rng: number) => {
+		const world = new World(() => rng, tokens());
+		world.join('a', { name: 'Ann', color: color(0), map: 'open' });
+		world.join('b', { name: 'Bo', color: color(1) });
+		steps(world, ROUND_TICKS);
+		return world;
+	};
 	for (const [rng, expected] of [
 		[0, 'ring'],
 		[0.99, 'lanes'],
 	] as const) {
-		const world = votingWorld(() => rng);
+		const world = roundOver(rng);
 		world.vote('a', 'ring');
 		world.vote('b', 'lanes');
-		steps(world, VOTE_TICKS);
+		steps(world, RESULTS_TICKS);
 		expect(world.map).toBe(expected);
 	}
-	const random = votingWorld(() => 0.99);
+	const random = roundOver(0.99);
 	random.vote('a', 'random');
-	steps(random, VOTE_TICKS);
+	steps(random, RESULTS_TICKS);
 	expect(random.map).toBe('pinball');
 });
 

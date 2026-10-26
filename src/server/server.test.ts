@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { type Socket, io } from 'socket.io-client';
 import { afterEach, expect, test } from 'vitest';
-import { PALETTE } from '../shared/constants.js';
+import { PALETTE, ROUND_TICKS } from '../shared/constants.js';
+import type { MapChoice } from '../shared/maps.js';
 import { NO_INPUT } from '../shared/game.js';
 import type {
 	ClientToServerEvents,
@@ -39,8 +40,19 @@ async function connect(colorIndex?: number): Promise<Client> {
 	return client;
 }
 
-function join(client: Client, name: string, color: string, token?: string): Promise<JoinResult> {
-	return client.emitWithAck('join', token ? { name, color, token } : { name, color });
+function join(
+	client: Client,
+	name: string,
+	color: string,
+	token?: string,
+	map?: MapChoice,
+): Promise<JoinResult> {
+	return client.emitWithAck('join', {
+		name,
+		color,
+		...(token ? { token } : {}),
+		...(map ? { map } : {}),
+	});
 }
 
 function nextSnapshot(client: Client, predicate: (s: Snapshot) => boolean = () => true) {
@@ -314,10 +326,14 @@ test('pages loaded before the update still move with the old key-flag input', as
 	expect(snap.players[0]?.x).toBeCloseTo(310);
 });
 
-test('a fresh server opens a map vote for the first player, and counts socket votes', async () => {
-	server = await startServer({ port: 0 });
-	const client = await connect(0);
-	await nextSnapshot(client, (s) => s.round.phase === 'voting');
+test('the first player joins straight into a round on their picked map; socket votes count', async () => {
+	const world = new World();
+	server = await startServer({ port: 0, world });
+	const client = await connect();
+	await join(client, 'Ann', PALETTE[0]!, undefined, 'crossroads');
+	const playing = await nextSnapshot(client, (s) => s.round.phase === 'playing');
+	expect(playing.round.map).toBe('crossroads');
+	for (let i = 0; i < ROUND_TICKS; i++) world.step();
 	client.emit('vote', 'pinball');
 	const snap = await nextSnapshot(client, (s) => s.round.votes.pinball === 1);
 	expect(snap.players[0]!.vote).toBe('pinball');

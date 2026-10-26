@@ -2,11 +2,13 @@ import { expect, test } from 'vitest';
 import { PALETTE } from '../shared/constants.js';
 import {
 	loadBoardPrefs,
+	loadMapPick,
 	loadOrCreatePlayerKey,
 	loadProfile,
 	loadSoundOn,
 	loadThemeId,
 	saveBoardPrefs,
+	saveMapPick,
 	saveProfile,
 	saveSoundOn,
 	saveThemeId,
@@ -114,4 +116,15 @@ test('sound is on by default, remembers off, and survives broken storage', () =>
 	expect(loadSoundOn(null)).toBe(true);
 	expect(loadSoundOn(throwingStorage())).toBe(true);
 	expect(() => saveSoundOn(throwingStorage(), false)).not.toThrow();
+});
+
+test('the map pick defaults to Random, round-trips, and ignores bad data', () => {
+	const storage = memoryStorage();
+	expect(loadMapPick(storage)).toBe('random');
+	saveMapPick(storage, 'lanes');
+	expect(loadMapPick(storage)).toBe('lanes');
+	storage.setItem('coin-race-map', 'moon');
+	expect(loadMapPick(storage)).toBe('random');
+	expect(loadMapPick(throwingStorage())).toBe('random');
+	expect(() => saveMapPick(throwingStorage(), 'ring')).not.toThrow();
 });

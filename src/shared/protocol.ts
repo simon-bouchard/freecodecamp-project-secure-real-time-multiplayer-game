@@ -103,8 +103,8 @@ export interface Snapshot {
 	events: GameEvent[];
 }
 
-/** `voting` picks the map before the first round; `results` is also the vote for the next one. */
-export type RoundPhase = 'waiting' | 'voting' | 'playing' | 'results';
+/** `results` (the round-over countdown) is also the vote for the next map. */
+export type RoundPhase = 'waiting' | 'playing' | 'results';
 
 /** Leaderboard time windows: today, this month, all time (server-local calendar). */
 export type Period = 'today' | 'month' | 'all';
@@ -125,6 +125,8 @@ export interface JoinRequest {
 	name: string;
 	color: string;
 	token?: string;
+	/** Map picked on the start screen: the first map if the game is empty. */
+	map?: MapChoice;
 }
 
 /** Why a join failed; `timeout` is produced by the client when the server never answers. */

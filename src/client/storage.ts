@@ -1,5 +1,6 @@
 import { PALETTE } from '../shared/constants.js';
 import { isPlayerKey } from '../shared/game.js';
+import { type MapChoice, isMapChoice } from '../shared/maps.js';
 import type { Period } from '../shared/protocol.js';
 import { DEFAULT_THEME_ID, type ThemeId, isThemeId } from './theme/registry.js';
 
@@ -7,6 +8,7 @@ const KEY = 'coin-race-profile';
 const THEME_KEY = 'coin-race-theme';
 const PLAYER_KEY = 'coin-race-player-key';
 const SOUND_KEY = 'coin-race-sound';
+const MAP_KEY = 'coin-race-map';
 
 export interface SavedProfile {
 	name: string;
@@ -52,6 +54,24 @@ export function loadThemeId(storage: Storage | null): ThemeId {
 export function saveThemeId(storage: Storage | null, id: ThemeId): void {
 	try {
 		storage?.setItem(THEME_KEY, id);
+	} catch {
+		// Same as saveProfile: the choice just won't be remembered.
+	}
+}
+
+/** The map last picked on the start screen; Random until the player picks one. */
+export function loadMapPick(storage: Storage | null): MapChoice {
+	try {
+		const value = storage?.getItem(MAP_KEY);
+		return isMapChoice(value) ? value : 'random';
+	} catch {
+		return 'random';
+	}
+}
+
+export function saveMapPick(storage: Storage | null, choice: MapChoice): void {
+	try {
+		storage?.setItem(MAP_KEY, choice);
 	} catch {
 		// Same as saveProfile: the choice just won't be remembered.
 	}
