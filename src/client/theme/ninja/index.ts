@@ -22,7 +22,7 @@ import {
 import { PAPER, mulberry32, readableOnPaper } from './geometry.js';
 import { labelLayout, labelX } from '../layout.js';
 import { SmokeTrail } from '../trail.js';
-import { ninjaSounds } from '../../sound/ninja.js';
+import { NINJA_SOUND_FILES, ninjaSounds } from '../../sound/ninja.js';
 
 const COLORS = {
 	page: '#2a1c11',
@@ -352,6 +352,7 @@ export const ninjaTheme: Theme = {
 	joinHint: 'WASD or arrow keys, Space to dash. Grab the narutomaki!',
 	joinTouchHint: 'Touch where you want to go, double tap to dash. Grab the narutomaki!',
 	sounds: ninjaSounds,
+	soundFiles: NINJA_SOUND_FILES,
 	beginFrame,
 	drawArena,
 	drawHeader,

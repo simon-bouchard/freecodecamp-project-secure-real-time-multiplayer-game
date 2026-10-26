@@ -15,6 +15,8 @@ export interface AudioOutput {
 	readonly synth: Synth;
 	readonly running: boolean;
 	resume(): void;
+	/** Start fetching sound files so they are ready when first played. */
+	preload(urls: readonly string[]): void;
 }
 
 /**
@@ -38,13 +40,14 @@ export class SoundBoard {
 		this.unlock();
 	}
 
-	/** Open or resume audio; call from a click, tap or key press. */
-	unlock(): void {
+	/** Open or resume audio, and preload `files`; call from a click, tap or key press. */
+	unlock(files: readonly string[] = []): void {
 		if (!this.on) {
 			return;
 		}
 		this.output ??= this.open();
 		this.output.resume();
+		this.output.preload(files);
 	}
 
 	play(cues: readonly SoundCue[], sounds: SoundSet | undefined): void {
@@ -69,5 +72,6 @@ export function browserAudio(): AudioOutput {
 			return ctx.state === 'running';
 		},
 		resume: () => void ctx.resume(),
+		preload: (urls) => synth.preload(urls),
 	};
 }

@@ -16,6 +16,13 @@ const YO = {
 };
 const YO_STRINGS = [YO.D4, YO.E4, YO.G4, YO.A4, YO.B4, YO.D5, YO.E5, YO.G5, YO.A5, YO.B5, YO.D6];
 
+/** Recorded sword clashes (CC0, Freesound #326868, #364531, #471095), played with variation. */
+export const NINJA_SOUND_FILES = [
+	'/sounds/sword-clash-1.mp3',
+	'/sounds/sword-clash-2.mp3',
+	'/sounds/sword-clash-3.mp3',
+] as const;
+
 /** Ninja sounds: koto, shamisen, shakuhachi, taiko, wood and bells. */
 export const ninjaSounds: SoundSet = {
 	coin: (s, t) => s.woodBlock(t, 1300, 0.5),
@@ -43,10 +50,7 @@ export const ninjaSounds: SoundSet = {
 		s.poof(t);
 		s.tone(300, t, { type: 'triangle', dur: 0.5, gain: 0.15, to: 100 });
 	},
-	bump: (s, t) => {
-		s.taiko(t, { freq: 90, dur: 0.25, gain: 0.5 });
-		s.clack(t, { freq: 900, gain: 0.3 });
-	},
+	bump: (s, t) => s.playVariant(NINJA_SOUND_FILES, t, { gain: 0.65 }),
 	dash: (s, t) => s.noise(t, { freq: 600, to: 3500, q: 1.5, gain: 0.9, dur: 0.12, attack: 0.04 }),
 	roundStart: (s, t) => {
 		s.taiko(t, { gain: 0.6 });

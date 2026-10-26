@@ -33,6 +33,10 @@ export class Synth {
 	private readonly noiseBuffer: AudioBuffer;
 	private readonly strings = new Map<string, AudioBuffer>();
 	private sawari: Float32Array<ArrayBuffer> | null = null;
+	/** Decoded sound files by URL; null while loading. */
+	private readonly files = new Map<string, AudioBuffer | null>();
+	/** Last file played from each group, so a group never repeats twice in a row. */
+	private readonly lastPick = new Map<string, number>();
 
 	constructor(readonly ctx: BaseAudioContext) {
 		this.master = ctx.createGain();
@@ -370,6 +374,44 @@ export class Synth {
 			node.start(t);
 			node.stop(t + dur + 0.05);
 		}
+	}
+
+	/** Fetch and decode sound files once; failures are forgotten so a later call can retry. */
+	preload(urls: readonly string[]): void {
+		for (const url of urls) {
+			if (this.files.has(url)) {
+				continue;
+			}
+			this.files.set(url, null);
+			fetch(url)
+				.then((res) => res.arrayBuffer())
+				.then((data) => this.ctx.decodeAudioData(data))
+				.then((buffer) => this.files.set(url, buffer))
+				.catch(() => this.files.delete(url));
+		}
+	}
+
+	/**
+	 * Play one of `urls` at random (never the same one twice in a row), with a small random pitch
+	 * and volume change so repeats sound different. Silent until the files have loaded.
+	 */
+	playVariant(urls: readonly string[], t: number, { gain = 1, spread = 0.06 } = {}): void {
+		this.preload(urls);
+		const ready = urls.flatMap((url, i) => (this.files.get(url) ? [i] : []));
+		if (ready.length === 0) {
+			return;
+		}
+		const key = urls.join('|');
+		const choices = ready.length > 1 ? ready.filter((i) => i !== this.lastPick.get(key)) : ready;
+		const index = choices[Math.floor(Math.random() * choices.length)]!;
+		this.lastPick.set(key, index);
+		const source = this.ctx.createBufferSource();
+		source.buffer = this.files.get(urls[index]!)!;
+		source.playbackRate.value = 1 - spread + Math.random() * 2 * spread;
+		const g = this.ctx.createGain();
+		g.gain.value = gain * (0.85 + Math.random() * 0.15);
+		source.connect(g).connect(this.master);
+		source.start(t);
 	}
 
 	private noiseSource(): AudioBufferSourceNode {

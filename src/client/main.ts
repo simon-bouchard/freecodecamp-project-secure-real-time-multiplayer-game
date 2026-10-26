@@ -169,7 +169,7 @@ for (const button of soundToggles) {
 }
 showSoundSetting();
 for (const type of ['pointerdown', 'keydown'] as const) {
-	window.addEventListener(type, () => sounds.unlock(), { capture: true });
+	window.addEventListener(type, () => sounds.unlock(theme.soundFiles), { capture: true });
 }
 
 const selfId = () => (session.joined ? (socket.id ?? null) : null);

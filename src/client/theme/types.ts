@@ -17,6 +17,8 @@ export interface Theme {
 	joinTouchHint: string;
 	/** Sounds for game moments; a theme without them is silent. */
 	sounds?: SoundSet;
+	/** Recorded sound files its sounds use, preloaded once audio is unlocked. */
+	soundFiles?: readonly string[];
 	/** Called once per frame before drawing, for themes that keep per-frame state. */
 	beginFrame?(view: FrameView, now: number): void;
 	/** Page background, floor and walls. */

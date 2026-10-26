@@ -3,13 +3,17 @@ import { type AudioOutput, type SoundSet, SoundBoard } from './board.js';
 import type { SoundCue } from './cues.js';
 import type { Synth } from './synth.js';
 
-function fakeOutput(running = true): AudioOutput & { resumed: number } {
+function fakeOutput(running = true): AudioOutput & { resumed: number; preloaded: string[] } {
 	return {
 		synth: { now: 5 } as Synth,
 		running,
 		resumed: 0,
+		preloaded: [],
 		resume() {
 			this.resumed++;
+		},
+		preload(urls) {
+			this.preloaded.push(...urls);
 		},
 	};
 }
@@ -81,4 +85,15 @@ test('a suspended output or a theme without sounds plays nothing', () => {
 	expect(() => silentTheme.play(['coin', 'win'], undefined)).not.toThrow();
 	silentTheme.play(['win'], recordingSet(played));
 	expect(played).toEqual([]);
+});
+
+test("unlocking preloads the theme's sound files, but not while sound is off", () => {
+	const output = fakeOutput();
+	const off = new SoundBoard(false, () => output);
+	off.unlock(['/sounds/a.mp3']);
+	expect(output.preloaded).toEqual([]);
+
+	const on = new SoundBoard(true, () => output);
+	on.unlock(['/sounds/a.mp3', '/sounds/b.mp3']);
+	expect(output.preloaded).toEqual(['/sounds/a.mp3', '/sounds/b.mp3']);
 });

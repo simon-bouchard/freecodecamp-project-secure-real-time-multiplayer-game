@@ -69,6 +69,12 @@ busy.
   magnet (pulls coins within 120 px for 6 s), double points (8 s) and slow others (everyone
   else at half speed for 3 s). Different boosts stack; active ones show as icons by your name.
 
+## Credits
+
+The Ninja bump sound uses three CC0 sword clash recordings from Freesound, trimmed and
+level-matched: #326868 by JohnBuhr, #364531 by Christopherderp and #471095 by spycrah. Every other
+sound is generated in the browser.
+
 ## How the netcode works
 
 | Step                                                               | Where                                                          |
