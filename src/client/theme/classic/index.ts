@@ -6,6 +6,7 @@ import {
 	ITEM_RADIUS,
 	PLAYER_RADIUS,
 } from '../../../shared/constants.js';
+import type { Obstacle } from '../../../shared/maps.js';
 import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, winnerText } from '../../format.js';
 import { type DrawnItem, type DrawnPlayer, type FrameView, chargeArcEnd } from '../../render.js';
@@ -215,6 +216,26 @@ function drawArena(ctx: CanvasRenderingContext2D): void {
 }
 
 /** The original look: grey arena, yellow smiley for you, red smileys for everyone else. */
+/** Grey outlines; bumpers are a double ring. */
+function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstacle[]): void {
+	ctx.strokeStyle = COLORS.wall;
+	ctx.lineWidth = 2;
+	for (const o of obstacles) {
+		ctx.beginPath();
+		if (o.kind === 'rect') {
+			ctx.rect(o.x, o.y, o.w, o.h);
+		} else {
+			ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+		}
+		ctx.stroke();
+		if (o.kind === 'bumper') {
+			ctx.beginPath();
+			ctx.arc(o.x, o.y, o.r - 6, 0, Math.PI * 2);
+			ctx.stroke();
+		}
+	}
+}
+
 export const classicTheme: Theme = {
 	id: 'classic',
 	bodyClass: 'theme-classic',
@@ -222,6 +243,7 @@ export const classicTheme: Theme = {
 	joinHint: 'Move with WASD or the arrow keys, dash with Space, and grab the coins.',
 	joinTouchHint: 'Touch where you want to go, double tap to dash, and grab the coins.',
 	drawArena,
+	drawObstacles,
 	drawHeader,
 	drawPickup: drawCoin,
 	drawBigPickup: drawBigCoin,

@@ -6,6 +6,7 @@ import {
 	ITEM_RADIUS,
 	PLAYER_RADIUS,
 } from '../../../shared/constants.js';
+import type { Obstacle } from '../../../shared/maps.js';
 import type { ItemKind, Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
 import { type DrawnItem, type DrawnPlayer, type FrameView, chargeArcEnd } from '../../render.js';
@@ -28,6 +29,7 @@ const COLORS = {
 	dim: 'rgba(20, 22, 28, 0.7)',
 	card: '#323844',
 	cardEdge: 'rgba(255, 255, 255, 0.1)',
+	obstacle: '#4a5263',
 } as const;
 
 const FONT = 'system-ui, sans-serif';
@@ -261,6 +263,31 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 }
 
 /** Plain flat shapes: solid discs on dark slate, gold dots and rings, round boost badges. */
+/** Plain slate shapes; bumpers are gold rings. */
+function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstacle[]): void {
+	for (const o of obstacles) {
+		ctx.beginPath();
+		if (o.kind === 'rect') {
+			ctx.roundRect(o.x, o.y, o.w, o.h, 6);
+		} else {
+			ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+		}
+		ctx.fillStyle = o.kind === 'bumper' ? COLORS.header : COLORS.obstacle;
+		ctx.fill();
+		if (o.kind === 'bumper') {
+			ctx.strokeStyle = COLORS.gold;
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			ctx.arc(o.x, o.y, o.r - 1.5, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.fillStyle = COLORS.gold;
+			ctx.beginPath();
+			ctx.arc(o.x, o.y, o.r * 0.3, 0, Math.PI * 2);
+			ctx.fill();
+		}
+	}
+}
+
 export const flatTheme: Theme = {
 	id: 'flat',
 	bodyClass: 'theme-flat',
@@ -270,6 +297,7 @@ export const flatTheme: Theme = {
 	sounds: flatSounds,
 	beginFrame,
 	drawArena,
+	drawObstacles,
 	drawHeader,
 	drawPickup,
 	drawBigPickup,

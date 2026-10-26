@@ -1,4 +1,4 @@
-import type { MapChoice } from '../shared/maps.js';
+import { MAPS, type MapChoice } from '../shared/maps.js';
 import type { ItemKind, Period, RoundState, Vec } from '../shared/protocol.js';
 import type { Theme } from './theme/types.js';
 
@@ -79,6 +79,7 @@ export function drawFrame(
 ): void {
 	theme.beginFrame?.(view, now);
 	theme.drawArena(ctx);
+	theme.drawObstacles(ctx, MAPS[view.round?.map ?? 'open'].obstacles);
 	theme.drawHeader(ctx, view);
 	if (view.coin) {
 		theme.drawPickup(ctx, view.coin);

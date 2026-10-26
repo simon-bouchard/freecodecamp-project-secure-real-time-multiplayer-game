@@ -6,6 +6,7 @@ import {
 	ITEM_RADIUS,
 	PLAYER_RADIUS,
 } from '../../../shared/constants.js';
+import type { Obstacle } from '../../../shared/maps.js';
 import type { Vec } from '../../../shared/protocol.js';
 import { blinkVisible, ordinal, winnerText } from '../../format.js';
 import { type DrawnItem, type DrawnPlayer, type FrameView, chargeArcEnd } from '../../render.js';
@@ -47,6 +48,12 @@ const COLORS = {
 	scrollEdge: '#5a3a1a',
 	winner: '#b5321f',
 	muted: '#6b5640',
+	obstacleShadow: 'rgba(42, 28, 17, 0.25)',
+	stone: '#8b8577',
+	stoneEdge: '#5f5a4f',
+	stoneLight: '#a9a293',
+	plank: '#7a5532',
+	drumSkin: '#ead9b4',
 } as const;
 
 /** The ramen bowl is drawn this many times wider than the big pickup's hit radius. */
@@ -345,6 +352,92 @@ function drawResults(ctx: CanvasRenderingContext2D, view: FrameView): void {
 }
 
 /** The ninja theme: training ground, headband ninjas, narutomaki, ramen and paper tags. */
+/** Stone pillars, wooden plank walls and taiko-drum bumpers. */
+function drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstacle[]): void {
+	for (const o of obstacles) {
+		ctx.fillStyle = COLORS.obstacleShadow;
+		ctx.beginPath();
+		if (o.kind === 'rect') {
+			ctx.roundRect(o.x + 3, o.y + 4, o.w, o.h, 4);
+		} else {
+			ctx.arc(o.x + 3, o.y + 4, o.r, 0, Math.PI * 2);
+		}
+		ctx.fill();
+		if (o.kind === 'rect') {
+			drawPlankWall(ctx, o);
+		} else if (o.kind === 'bumper') {
+			drawTaiko(ctx, o);
+		} else {
+			drawStone(ctx, o);
+		}
+	}
+}
+
+function drawStone(ctx: CanvasRenderingContext2D, o: { x: number; y: number; r: number }): void {
+	ctx.fillStyle = COLORS.stone;
+	ctx.strokeStyle = COLORS.stoneEdge;
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.stroke();
+	ctx.fillStyle = COLORS.stoneLight;
+	ctx.beginPath();
+	ctx.arc(o.x - o.r * 0.3, o.y - o.r * 0.3, o.r * 0.35, 0, Math.PI * 2);
+	ctx.fill();
+}
+
+function drawPlankWall(
+	ctx: CanvasRenderingContext2D,
+	o: { x: number; y: number; w: number; h: number },
+): void {
+	ctx.fillStyle = COLORS.plank;
+	ctx.strokeStyle = COLORS.woodDark;
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.roundRect(o.x, o.y, o.w, o.h, 4);
+	ctx.fill();
+	ctx.stroke();
+	ctx.strokeStyle = COLORS.woodLine;
+	ctx.lineWidth = 1;
+	const across = o.w >= o.h;
+	const span = across ? o.h : o.w;
+	for (let offset = 5; offset < span - 2; offset += 6) {
+		ctx.beginPath();
+		if (across) {
+			ctx.moveTo(o.x + 4, o.y + offset);
+			ctx.lineTo(o.x + o.w - 4, o.y + offset);
+		} else {
+			ctx.moveTo(o.x + offset, o.y + 4);
+			ctx.lineTo(o.x + offset, o.y + o.h - 4);
+		}
+		ctx.stroke();
+	}
+}
+
+/** A taiko drum seen from above: lacquered rim, drum skin, tacks and a red centre. */
+function drawTaiko(ctx: CanvasRenderingContext2D, o: { x: number; y: number; r: number }): void {
+	ctx.fillStyle = COLORS.scrollRod;
+	ctx.beginPath();
+	ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = COLORS.drumSkin;
+	ctx.beginPath();
+	ctx.arc(o.x, o.y, o.r - 5, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.fillStyle = COLORS.ink;
+	for (let i = 0; i < 12; i++) {
+		const a = (i / 12) * Math.PI * 2;
+		ctx.beginPath();
+		ctx.arc(o.x + Math.cos(a) * (o.r - 2.5), o.y + Math.sin(a) * (o.r - 2.5), 1.2, 0, Math.PI * 2);
+		ctx.fill();
+	}
+	ctx.fillStyle = COLORS.winner;
+	ctx.beginPath();
+	ctx.arc(o.x, o.y, o.r * 0.28, 0, Math.PI * 2);
+	ctx.fill();
+}
+
 export const ninjaTheme: Theme = {
 	id: 'ninja',
 	bodyClass: 'theme-ninja',
@@ -355,6 +448,7 @@ export const ninjaTheme: Theme = {
 	soundFiles: NINJA_SOUND_FILES,
 	beginFrame,
 	drawArena,
+	drawObstacles,
 	drawHeader,
 	drawPickup: drawNarutomaki,
 	drawBigPickup: drawRamen,

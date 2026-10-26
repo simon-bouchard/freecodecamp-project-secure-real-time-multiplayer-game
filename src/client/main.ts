@@ -23,7 +23,7 @@ import {
 } from './storage.js';
 import { THEMES } from './theme/index.js';
 import { THEME_OPTIONS, type ThemeId, isThemeId } from './theme/registry.js';
-import { BestRunsPanel, JoinPanel, Scoreboard } from './ui.js';
+import { BestRunsPanel, JoinPanel, MapVotePanel, Scoreboard } from './ui.js';
 
 const JOIN_MESSAGES: Record<JoinFailure, string> = {
 	'color-taken': 'That colour was just taken',
@@ -118,6 +118,10 @@ async function join(name: string, color: string): Promise<void> {
 	}
 }
 
+const mapVote = new MapVotePanel(document.getElementById('map-vote')!, (choice) =>
+	session.vote(choice),
+);
+
 const themeSelects = [...document.querySelectorAll<HTMLSelectElement>('.theme-select')];
 let theme = THEMES[loadThemeId(storage)];
 
@@ -133,6 +137,7 @@ function applyTheme(id: ThemeId): void {
 	for (const select of themeSelects) {
 		select.value = id;
 	}
+	mapVote.drawPreviews(theme);
 }
 
 for (const select of themeSelects) {
@@ -191,6 +196,7 @@ function frame(now: number): void {
 	drawFrame(ctx, { ...view, touchTarget, textScale: scale }, theme, now);
 	scoreboard.update(view.scoreboard);
 	bestRuns.update(session.leaderboard, Date.now());
+	mapVote.update(view.round, view.myVote, session.joined, view.serverNow);
 	if (panel.visible) {
 		panel.setTaken(new Map(view.scoreboard.map((row) => [row.color, row.name])));
 	}

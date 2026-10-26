@@ -1,8 +1,10 @@
-import { PALETTE } from '../shared/constants.js';
-import type { LeaderboardView, Period } from '../shared/protocol.js';
+import { ARENA, PALETTE } from '../shared/constants.js';
+import { MAPS, MAP_CHOICES, type MapChoice } from '../shared/maps.js';
+import type { LeaderboardView, Period, RoundPhase, RoundState } from '../shared/protocol.js';
 import { formatRunTime, ordinal } from './format.js';
 import type { ScoreRow } from './render.js';
 import type { BoardPrefs } from './storage.js';
+import type { Theme } from './theme/types.js';
 
 /** Keep `current` while free, else a random free colour, or null when all are taken. */
 export function pickDefaultColor(
@@ -256,5 +258,107 @@ export class BestRunsPanel {
 				return item;
 			}),
 		);
+	}
+}
+
+/** Heading of the map vote panel; `msLeft` is the time until the vote closes. */
+export function voteTitle(phase: RoundPhase, msLeft: number, canVote: boolean): string {
+	const seconds = `${Math.max(0, Math.ceil(msLeft / 1000))} s`;
+	if (!canVote) {
+		return `Next map vote · ${seconds} (join to vote)`;
+	}
+	return phase === 'voting' ? `Pick the map · ${seconds}` : `Vote for the next map · ${seconds}`;
+}
+
+const PREVIEW_WIDTH = 96;
+const PREVIEW_HEIGHT = Math.round((PREVIEW_WIDTH * ARENA.height) / ARENA.width);
+
+/** Map cards under the game while a vote is open: previews, live counts, our vote highlighted. */
+export class MapVotePanel {
+	private readonly title: HTMLElement;
+	private readonly cards = new Map<
+		MapChoice,
+		{ button: HTMLButtonElement; count: HTMLElement; preview: HTMLCanvasElement }
+	>();
+	private shown = '';
+
+	constructor(
+		private readonly root: HTMLElement,
+		onVote: (choice: MapChoice) => void,
+	) {
+		this.title = root.querySelector('.map-vote-title')!;
+		const list = root.querySelector('.map-vote-cards')!;
+		for (const choice of MAP_CHOICES) {
+			const button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'map-card';
+			const preview = document.createElement('canvas');
+			preview.width = PREVIEW_WIDTH * 2;
+			preview.height = PREVIEW_HEIGHT * 2;
+			const name = document.createElement('span');
+			name.className = 'map-card-name';
+			name.textContent = choice === 'random' ? 'Random' : MAPS[choice].name;
+			const count = document.createElement('span');
+			count.className = 'map-card-count';
+			button.append(preview, name, count);
+			button.addEventListener('click', () => {
+				onVote(choice);
+				button.blur();
+			});
+			list.append(button);
+			this.cards.set(choice, { button, count, preview });
+		}
+	}
+
+	/** Redraw the small map previews in `theme`'s look (call when the theme changes). */
+	drawPreviews(theme: Theme): void {
+		for (const [choice, { preview }] of this.cards) {
+			const ctx = preview.getContext('2d');
+			if (!ctx) {
+				continue;
+			}
+			const scale = preview.width / ARENA.width;
+			ctx.setTransform(scale, 0, 0, scale, -ARENA.x * scale, -ARENA.y * scale);
+			theme.drawArena(ctx);
+			if (choice === 'random') {
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+				ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+				ctx.fillRect(0, 0, preview.width, preview.height);
+				ctx.fillStyle = '#ffffff';
+				ctx.font = `bold ${Math.round(preview.height * 0.6)}px system-ui, sans-serif`;
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'middle';
+				ctx.fillText('?', preview.width / 2, preview.height / 2);
+			} else {
+				theme.drawObstacles(ctx, MAPS[choice].obstacles);
+			}
+		}
+	}
+
+	/** Show or hide the panel and refresh counts; only touches the page when something changed. */
+	update(
+		round: RoundState | null,
+		myVote: MapChoice | null,
+		canVote: boolean,
+		serverNow: number,
+	): void {
+		const open = round !== null && (round.phase === 'voting' || round.phase === 'results');
+		const title = open ? voteTitle(round.phase, (round.endsAt ?? 0) - serverNow, canVote) : '';
+		const key = open ? `${title}|${myVote}|${canVote}|${JSON.stringify(round.votes)}` : 'closed';
+		if (key === this.shown) {
+			return;
+		}
+		this.shown = key;
+		this.root.hidden = !open;
+		if (!open) {
+			return;
+		}
+		this.title.textContent = title;
+		for (const [choice, { button, count }] of this.cards) {
+			const votes = round.votes[choice];
+			count.textContent = votes === 1 ? '1 vote' : `${votes} votes`;
+			button.setAttribute('aria-pressed', String(myVote === choice));
+			button.disabled = !canVote;
+		}
 	}
 }

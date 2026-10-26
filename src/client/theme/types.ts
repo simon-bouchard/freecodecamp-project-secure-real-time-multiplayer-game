@@ -1,5 +1,6 @@
 import type { Vec } from '../../shared/protocol.js';
 import type { DrawnItem, DrawnPlayer, FrameView } from '../render.js';
+import type { Obstacle } from '../../shared/maps.js';
 import type { SoundSet } from '../sound/board.js';
 import type { ThemeId } from './registry.js';
 
@@ -23,6 +24,8 @@ export interface Theme {
 	beginFrame?(view: FrameView, now: number): void;
 	/** Page background, floor and walls. */
 	drawArena(ctx: CanvasRenderingContext2D): void;
+	/** The current map's obstacles, drawn on the floor. */
+	drawObstacles(ctx: CanvasRenderingContext2D, obstacles: readonly Obstacle[]): void;
 	drawHeader(ctx: CanvasRenderingContext2D, view: FrameView): void;
 	/** The regular 1-point pickup. */
 	drawPickup(ctx: CanvasRenderingContext2D, pos: Vec): void;
