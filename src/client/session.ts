@@ -120,6 +120,9 @@ export class GameSession {
 		const busy = this.predictor.knocked || this.predictor.dashing || this.predictor.dashPending;
 		const idle = !moving && sameMove(move, this.lastSent) && !busy;
 		if (!this.socket.connected || !this.isJoined || !playing || idle) {
+			if (!playing) {
+				this.predictor.cancelDash();
+			}
 			this.predictor.holdStill();
 			return;
 		}

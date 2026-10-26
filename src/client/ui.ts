@@ -81,7 +81,9 @@ export class JoinPanel {
 	hide(): void {
 		this.form.hidden = true;
 		document.body.classList.remove('joining');
-		this.input.blur();
+		if (document.activeElement instanceof HTMLElement) {
+			document.activeElement.blur();
+		}
 	}
 
 	setProfile(profile: { name: string; color: string }): void {

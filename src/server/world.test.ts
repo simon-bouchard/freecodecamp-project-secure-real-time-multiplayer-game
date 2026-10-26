@@ -891,3 +891,27 @@ test('round end clears dashes and cooldowns', () => {
 	expect(selfOf(world).dash).toBeNull();
 	expect(selfOf(world).dashReadyAt).toBe(0);
 });
+
+test('bunched dash inputs apply one per tick, so a dash cannot pass through a player', () => {
+	const world = bumpWorld({ x: 100, y: 300 }, { x: 145, y: 300 });
+	world.queueInput('a', { seq: 1, move: RIGHT, dash: true });
+	world.queueInput('a', { seq: 2, move: RIGHT });
+	world.queueInput('a', { seq: 3, move: RIGHT });
+	world.step();
+	expect(selfOf(world).lastSeq).toBe(1);
+	expect(knockOf(world, 'b').x).toBeCloseTo(BUMP_BASE + BUMP_STRENGTH * DASH_SPEED);
+});
+
+test('after a dash, standing still does not keep a dash-strength shove', () => {
+	const world = bumpWorld({ x: 100, y: 300 }, { x: 100, y: 420 });
+	world.queueInput('a', { seq: 1, move: RIGHT, dash: true });
+	world.step();
+	for (let seq = 2; seq <= 5; seq++) {
+		world.queueInput('a', { seq, move: RIGHT });
+		world.step();
+	}
+	world.step();
+	world.setPlayerPosition('b', { x: selfOf(world).x + 25, y: 300 });
+	world.step();
+	expect(knockOf(world, 'b').x).toBeLessThanOrEqual(BUMP_BASE + BUMP_STRENGTH + 1e-6);
+});

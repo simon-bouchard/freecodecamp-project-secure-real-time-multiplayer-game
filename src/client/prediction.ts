@@ -59,6 +59,14 @@ export class Predictor {
 		return true;
 	}
 
+	/** Forget a dash request that was never sent (e.g. the round ended first). */
+	cancelDash(): void {
+		if (this.dashWanted) {
+			this.dashWanted = false;
+			this.localReadyAt = 0;
+		}
+	}
+
 	/** True while a bump's knockback is still moving us. */
 	get knocked(): boolean {
 		return this.knock.x !== 0 || this.knock.y !== 0;

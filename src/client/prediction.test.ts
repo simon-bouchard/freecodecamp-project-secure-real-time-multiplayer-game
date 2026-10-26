@@ -214,3 +214,13 @@ test('a dash while standing still goes the way we last moved', () => {
 	expect(msg.move).toEqual({ x: 0, y: 1 });
 	expect(p.position!.y).toBeCloseTo(100 + 10 + 30);
 });
+
+test('a cancelled dash request is forgotten and does not use up the cooldown', () => {
+	const p = new Predictor();
+	p.reconcile(server(100, 0));
+	p.requestDash(0);
+	p.cancelDash();
+	expect(p.dashPending).toBe(false);
+	expect(p.applyLocalInput(RIGHT)!.dash).toBeUndefined();
+	expect(p.requestDash(0)).toBe(true);
+});

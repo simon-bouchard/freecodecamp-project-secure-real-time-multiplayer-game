@@ -372,10 +372,14 @@ export class World {
 			if (entry.state.dash && ++entry.dashAge > 2 * DASH_INPUTS) {
 				entry.state.dash = null;
 			}
+			if (!entry.state.dash) {
+				capSteer(entry, PLAYER_SPEED * speedMultiplier(entry.effects.keys()));
+			}
 			while (entry.credits >= 1 && entry.queue.length > 0) {
 				const msg = entry.queue.shift()!;
 				const factor = speedMultiplier(entry.effects.keys());
-				const startDash = msg.dash === true && !entry.state.dash && entry.dashCooldown === 0;
+				const wasDashing = entry.state.dash !== null;
+				const startDash = msg.dash === true && !wasDashing && entry.dashCooldown === 0;
 				const step = applyInput(
 					entry.state,
 					msg.move,
@@ -398,6 +402,9 @@ export class World {
 				entry.state.dash = step.dash;
 				entry.state.lastSeq = msg.seq;
 				entry.credits--;
+				if (wasDashing || startDash) {
+					break;
+				}
 			}
 		}
 	}
@@ -725,5 +732,13 @@ function separate(a: Vec, b: Vec, n: Vec): void {
 	}
 	if (gap() > 0) {
 		push(a, -1, gap());
+	}
+}
+
+/** Limit remembered steering speed, so a finished dash can't keep shoving at dash strength. */
+function capSteer(entry: { steer: Vec }, max: number): void {
+	const speed = Math.hypot(entry.steer.x, entry.steer.y);
+	if (speed > max) {
+		entry.steer = { x: (entry.steer.x / speed) * max, y: (entry.steer.y / speed) * max };
 	}
 }
